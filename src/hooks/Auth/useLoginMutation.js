@@ -4,7 +4,7 @@ import client from "~/config/client";
 const useLoginMutation = () => {
   return useMutation({
     mutationFn: async (params) => {
-      return client.post('/auth/login', params);
+      return client.post('/ldap/authenticate', params);
     },
     onSuccess: () => {},
   })

@@ -20,7 +20,7 @@ import useAuth from "~/hooks/Auth/useAuth";
 import { useNavigate } from "react-router";
 import StringRoutes from "~/constants/StringRoutes";
 import packageJson from '../../../package.json';
-import Logo from '~/assets/DefaultImages/PaLogoCol.png';
+// import Logo from '~/assets/DefaultImages/PaLogoCol.png';
 
 
 const formWidth = {
@@ -58,7 +58,7 @@ const Login = () => {
     loginMutation.mutate(form.getValues(), {
       onSuccess: (response) => {
         setIsLoading(false);
-        onSetUserDetails(response.data.body, response.data.body.token)
+        onSetUserDetails(response.data.data, null)
         notifications.show({
           color: 'green',
           title: "Success",
@@ -84,7 +84,7 @@ const Login = () => {
   return (
     <Container h={'100vh'} >
       <Flex direction={"column"} h={"100%"} align="center" justify="center">
-        <Image src={Logo} h={120} w="auto" />
+        {/* <Image src={Logo} h={120} w="auto" /> */}
 
         <form onSubmit={handleSubmit}>
           <Flex direction="column" align="center" >

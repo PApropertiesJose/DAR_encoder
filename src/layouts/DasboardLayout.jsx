@@ -30,13 +30,13 @@ import {
   Moon,
   Bell,
   Settings,
-  Users,
-  Map,
+  NotebookPen,
   FileWarning,
   Building2,
   Book,
   MapPin,
 } from 'lucide-react';
+import StringRoutes from '~/Constants/StringRoutes';
 
 const ToggleMenuTheme = ({
   onClick
@@ -113,9 +113,8 @@ const ButtonNavLink = ({
   children,
 }) => {
   const { user } = useAuth();
-  const permission = user.permissions.find(val => val.name === children);
   return (
-    <NavLink style={{ display: (permission && permission?.read) ? 'block' : 'none' }} to={to}>{children}</NavLink>
+    <NavLink to={to}>{children}</NavLink>
   )
 }
 
@@ -123,13 +122,12 @@ const DashboardLayout = () => {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const pinned = useHeadroom({ fixedAt: 120 })
-  const { token, onSetClearToken } = useAuth();
+  const {onSetClearToken } = useAuth();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
   const scrollPositions = useRef({});
   const location = useLocation();
   const { user } = useAuth();
-  const setupPermission = user?.permissions.find(permission => permission.name === "Setup");
   const { ref, height } = useElementSize();
   const [isDark, setIsDark] = useState(
     () => (localStorage.getItem('color-scheme') || 'dark') === 'dark'
@@ -242,10 +240,12 @@ const DashboardLayout = () => {
 
           {/* Dashboard */}
           <div className="nav-section-label">Overview</div>
-          <ChildLink to={""} icon={LayoutDashboard}>
+          <ChildLink to={"/"} icon={LayoutDashboard}>
             Dashboard
           </ChildLink>
-
+          <ChildLink to={StringRoutes.project_selection} icon={NotebookPen}>
+            Task Entries
+          </ChildLink>
           {/* Setup */}
           <div className='nav-section-label' style={{ marginTop: 16 }}>Management</div>
           <NavSection

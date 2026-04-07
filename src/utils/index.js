@@ -75,3 +75,9 @@ export const shortHandName = (name) => {
 
 export const normalizeWKT = (geom) =>
   geom.replace("COMPOUNDCURVE", "LINESTRING");
+
+export function getInitials(user) {
+  return user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'AD'
+}

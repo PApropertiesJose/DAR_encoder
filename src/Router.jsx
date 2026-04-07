@@ -3,12 +3,24 @@ import StringRoutes from '~/Constants/StringRoutes'
 import DashboardLayout from '~/layouts/DasboardLayout'
 import Dashboard from './Pages/Dashboard'
 import ProtectedRoutes from './components/Routes'
+import Login from './Pages/Auth/Login' 
+import ProjectSelection from './Pages/ProjectSelection'
+import TaskEntries from './Pages/TaskEntries'
 
 const DASHBOARD_ROUTES = [
   {
     path: '',
     Component: Dashboard,
-    children: []
+    children: [
+      {
+        path: StringRoutes.project_selection,
+        Component: ProjectSelection
+      },
+      {
+        path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,
+        Component: TaskEntries,
+      }
+    ]
   }
 ]
 
@@ -22,6 +34,10 @@ const router = createBrowserRouter([
         children: DASHBOARD_ROUTES
       },
     ]
+  },
+  {
+    path: StringRoutes.login,
+    Component: Login,
   }
 ],
   {

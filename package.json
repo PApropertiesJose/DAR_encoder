@@ -20,6 +20,7 @@
     "@turf/turf": "^7.3.4",
     "@uiw/react-json-view": "^2.0.0-alpha.32",
     "axios": "^1.9.0",
+    "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.503.0",
     "moment": "^2.30.1",

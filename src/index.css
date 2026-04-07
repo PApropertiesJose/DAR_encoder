@@ -1,14 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+    --font-main: 'Outfit', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+}
+
+body,
+.mantine-AppShell-root {
+    font-family: var(--font-main) !important;
+    background: var(--shell-bg) !important;
+}
+
 body {
-  padding: 0;
-  margin: 0;
-  /* It's generally a good idea to reset margin as well */
-  font-family: 'Roboto', sans-serif;
-  background-color: #f4f4f4;
-  /* Example: Set a light background color */
-  color: #333;
-  /* Example: Set a default text color */
-  -webkit-font-smoothing: antialiased;
-  /* Improve font rendering on webkit browsers */
-  -moz-osx-font-smoothing: grayscale;
-  /* Improve font rendering on Firefox */
+    padding: 0;
+    margin: 0;
+    /* It's generally a good idea to reset margin as well */
+    /* font-family: 'Roboto', sans-serif; */
+    background-color: #f4f4f4;
+    /* Example: Set a light background color */
+    color: #333;
+    /* Example: Set a default text color */
+    -webkit-font-smoothing: antialiased;
+    /* Improve font rendering on webkit browsers */
+    -moz-osx-font-smoothing: grayscale;
+    /* Improve font rendering on Firefox */
+}
+
+.lineDivider {
+    flex-shrink: 0;
+    border-top: 0px solid rgba(0, 0, 0, .12);
+    border-right: 0px solid rgba(0, 0, 0, .12);
+    border-left: 0px solid rgba(0, 0, 0, .12);
+    background-color: transparent;
+    height: .0625rem;
+    margin: 0rem 0px;
+    border-bottom: none;
+    opacity: .25;
+    background-image: linear-gradient(to right, #34476700, #34476766, #34476700) !important;
 }

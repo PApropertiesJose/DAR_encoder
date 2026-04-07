@@ -89,6 +89,9 @@ export const darkTheme: MantineThemeOverride = createTheme({
     }),
 
     Container: Container.extend({
+      styles: {
+        root: {}
+      },
       vars: (_, { size, fluid }) => ({
         root: {
           "--container-size": fluid
@@ -130,11 +133,14 @@ export const darkTheme: MantineThemeOverride = createTheme({
 
     Table: Table.extend({
       styles: {
+        thead: {
+          backgroundColor: '#00595c',
+        },
         tbody: {
           backgroundColor: "transparent"
         },
         th: {
-          color: "var(--text-muted)",
+          color: "white",
           borderBottom: "1px solid var(--nav-border)",
         },
         td: {
@@ -321,6 +327,8 @@ export const theme: MantineThemeOverride = createTheme({
       },
       styles: {
         thead: {
+          backgroundColor: '#00595c',
+          color: '#fefcfb'
         },
         tbody: {
           backgroundColor: '#fefcfb'
