@@ -1,123 +1,236 @@
-import { Select, NativeSelect, Tooltip, Table, ActionIcon, Loader } from '@mantine/core'
+import {
+  Badge, Select, NativeSelect, Tooltip, Table,
+  ActionIcon, Loader, Text, ThemeIcon
+} from '@mantine/core';
 import { ChevronDown, Pen } from 'lucide-react';
 import { useParams } from 'react-router';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useReducer } from 'react';
 import useAuth from '~/hooks/Auth/useAuth';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
-import useFetchLot from '~/hooks/Filters/useFetchLot';
 import TaskColumnActivities from './TaskColumnActivities';
+import DateTimeIn from './DateTimeIn';
+import DateTimeOut from './DateTimeOut';
+import { computeHoursPerActivity } from '~/utils';
+import TaskColumnLotComboBox from './TaskColumnLotComboBox';
 
-const TaskColumnBlock = ({
-  onChange,
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const CONSTRUCTION_TYPES = [
+  { label: 'House Unit', value: 'house-unit' },
+  { label: 'Other Task', value: 'other-task' },
+  { label: "Land Dev't", value: 'lan-dev' },
+  { label: 'Post Task', value: 'post-task' },
+];
+
+const INITIAL_STATE = {
+  constructionIndex: 'house-unit',
+  block: null,
+  lot: null,
+  lotObject: null,
+  timeIn: null,
+  timeOut: null,
+  actTerm: null,
+  activity: null,
+};
+
+// ─── Reducer ─────────────────────────────────────────────────────────────────
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_CONSTRUCTION':
+      return { ...INITIAL_STATE, constructionIndex: action.payload };
+
+    case 'SET_BLOCK':
+      return {
+        ...state,
+        block: action.payload,
+        lot: null,
+        lotObject: null,
+        actTerm: null,
+        activity: null,
+      };
+
+    case 'SET_LOT':
+      return {
+        ...state,
+        lot: action.payload.code,
+        lotObject: action.payload,
+        actTerm: null,
+        activity: null
+      };
+
+    case 'SET_TIME_IN':
+      return { ...state, timeIn: action.payload };
+
+    case 'SET_TIME_OUT':
+      return { ...state, timeOut: action.payload };
+
+    case 'SET_ACTIVITY':
+      return {
+        ...state,
+        actTerm: action.payload.description,
+        activity: action.payload,
+      };
+
+    default:
+      return state;
+  }
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+const BlockSelect = memo(({ value, params, onChange }) => {
+  const { data, isLoading, isSuccess } = useFetchBlock({ params });
+
+  const blocks = useMemo(
+    () => (isSuccess ? data?.data.map((item) => item.code) : []),
+    [data, isSuccess]
+  );
+
+  return (
+    <Select
+      value={value}
+      placeholder="BLOCK"
+      data={blocks}
+      searchable
+      rightSection={isLoading ? <Loader size={15} /> : <ChevronDown size={16} />}
+      onChange={onChange}
+    />
+  );
+});
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const TaskRowSub = memo(({
   params
 }) => {
-  const { data, isLoading, isSuccess } = useFetchBlock({ params: params });
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
-  const blocks = useMemo(() => {
-    if (!isSuccess) return [];
-    return data?.data.map((item) => item.code);
-  }, [data, isSuccess]);
+  const {
+    constructionIndex, block, lot, lotObject,
+    timeIn, timeOut, actTerm,
+  } = state;
 
-  return <Select
-    rightSection={isLoading ? <Loader size={15} /> : <ChevronDown />}
-    placeholder='BLOCK'
-    data={blocks}
-    searchable
-    onChange={(v) => onChange(v)}
-  />
-}
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
-const TaskColumnLot = ({
-  params,
-  onChange,
-  lot
-}) => {
-  const { data, isLoading, isSuccess } = useFetchLot({ params: params });
+  const handleSelectConstruction = useCallback(
+    (e) => dispatch({ type: 'SET_CONSTRUCTION', payload: e.currentTarget.value }),
+    []
+  );
 
-  const lots = useMemo(() => {
-    if (!isSuccess) return [];
-    return data?.data.map((item, index) => ({
-      label: `${item.code} (${item.description} - ${item.model})`,
-      value: item.code === "0000" ?
-        `${item.code}#${index}` : 
-        item.code
-    }));
-  }, [data, isSuccess])
+  const handleSelectBlock = useCallback(
+    (val) => dispatch({ type: 'SET_BLOCK', payload: val }),
+    []
+  );
 
-  return <Select
-    value={lot}
-    onChange={(v) => onChange(v)}
-    rightSection={isLoading ? <Loader size={15} /> : <ChevronDown />}
-    placeholder='LOT'
-    data={lots}
-    searchable
-  />
-}
+  const handleSelectLot = useCallback(
+    (val) => dispatch({ type: 'SET_LOT', payload: val }),
+    []
+  );
 
-const TaskRowSub = memo(() => {
-  const [block, setBlock] = useState(null)
-  const [lot, setLot] = useState(null);
-  const { phaseCode } = useParams();
+  const handleTimeIn = useCallback(
+    (val) => dispatch({ type: 'SET_TIME_IN', payload: val }),
+    []
+  );
 
-  const { user } = useAuth();
-  const username = user.username;
+  const handleTimeOut = useCallback(
+    (val) => dispatch({ type: 'SET_TIME_OUT', payload: val }),
+    []
+  );
 
-  const handleSelectBlock = useCallback((val) => {
-    setBlock(val);
-    setLot(null);
-  })
+  const handleSelectActivity = useCallback(
+    (val) => dispatch({ type: 'SET_ACTIVITY', payload: val }),
+    []
+  );
 
-  const handleSelectLot = useCallback((val) => {
-    setLot(val);
-  });
+  // ── Derived State ─────────────────────────────────────────────────────────
+
+  const hoursPerActivity = useMemo(
+    () => computeHoursPerActivity({ timeIn, timeOut }),
+    [timeIn, timeOut]
+  );
+
+  const blockParams = params
+
+  const lotParams = useMemo(
+    () => ({ ...params, block }),
+    [params, block]
+  );
+
+  const activityParams = useMemo(
+    () => {
+      if(!block || !lotObject) return null;
+      return {
+        username: params.username,
+        constructionIndex: constructionIndex,
+        system: 'NOAH_PAAPDC',
+        phaseCode: params.phaseCode,
+        model: lotObject?.model,
+        lot: lotObject?.lot_type,
+        block: block,
+        lot_no: lotObject?.code,
+      }
+    },
+    [lotObject, block]
+  )
 
   return (
     <Table.Tr>
       <Table.Td>
         <NativeSelect
-          data={[
-            { label: 'House Unit', value: 2 },
-            { label: 'Other Task', value: 4 },
-            { label: "Land Dev't", value: 1 },
-            { label: 'Post Task', value: 5 },
-          ]}
+          value={constructionIndex}
+          data={CONSTRUCTION_TYPES}
+          onChange={handleSelectConstruction}
         />
       </Table.Td>
+
       <Table.Td>
-        <TaskColumnBlock
-          params={{
-            username: username,
-            phaseCode: phaseCode
-          }}
+        <BlockSelect
+          value={block}
+          params={blockParams}
           onChange={handleSelectBlock}
         />
       </Table.Td>
+
       <Table.Td>
-        <TaskColumnLot
+        <TaskColumnLotComboBox
           lot={lot}
+          params={lotParams}
           onChange={handleSelectLot}
-          params={{
-            username: username,
-            phaseCode: phaseCode,
-            block: block,
-          }}
         />
       </Table.Td>
+
       <Table.Td>
-        <TaskColumnActivities />
+        <TaskColumnActivities
+          term={actTerm}
+          onChange={handleSelectActivity}
+          params={activityParams}
+        />
       </Table.Td>
-      <Table.Td></Table.Td>
-      <Table.Td style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}>2026-04-07 10:00</Table.Td>
-      <Table.Td style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}>2026-04-07 12:00</Table.Td>
+
+      <Table.Td>
+        <Tooltip label="Hours">
+          <Text size="xs" ff="monospace">{hoursPerActivity}/hrs</Text>
+        </Tooltip>
+      </Table.Td>
+
+      <Table.Td>
+        <DateTimeIn value={timeIn} onChange={handleTimeIn} />
+      </Table.Td>
+
+      <Table.Td>
+        <DateTimeOut value={timeOut} onChange={handleTimeOut} />
+      </Table.Td>
+
       <Table.Td>
         <Tooltip label="Save">
-          <ActionIcon variant='light' size={32}>
+          <ActionIcon variant="light" size={32}>
             <Pen size={12} />
           </ActionIcon>
         </Tooltip>
       </Table.Td>
     </Table.Tr>
-  )
-})
+  );
+});
 
 export default TaskRowSub;

@@ -246,25 +246,6 @@ const DashboardLayout = () => {
           <ChildLink to={StringRoutes.project_selection} icon={NotebookPen}>
             Task Entries
           </ChildLink>
-          {/* Setup */}
-          <div className='nav-section-label' style={{ marginTop: 16 }}>Management</div>
-          <NavSection
-            label="Setup"
-            icon={Wrench}
-            routes={[]}
-          >
-          </NavSection>
-
-          {/* Reports */}
-          <div className="nav-section-label" style={{ marginTop: 16 }}>Analytics</div>
-          <NavSection
-            label="Reports"
-            icon={BarChart2}
-            routes={[]}
-          >
-            <ChildLink to={null} icon={FileWarning}>Crash Reports</ChildLink>
-          </NavSection>
-
           <Space h={16} />
         </ScrollArea>
 

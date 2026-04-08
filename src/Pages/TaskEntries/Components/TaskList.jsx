@@ -2,39 +2,59 @@ import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Tabl
 import { Pickaxe, Plus } from 'lucide-react';
 import { memo } from 'react'
 import TaskRowSub from './TaskRowSub';
+import { useParams } from 'react-router';
+import useAuth from '~/hooks/Auth/useAuth';
+import { useTaskContext } from '../context';
 
-const TaskRowHeader = memo(() => {
+const TaskRowHeader = memo(({
+  admin,
+  params
+}) => {
+  const { handleAddTaskAdmin } = useTaskContext();
+
+  const tasks = admin.tasks ?? [];
+
   return (
     <>
       <Table.Tr >
-        <Table.Td style={{ fontSize: '13px'}}>Jose Paulo M. Dela Cruz</Table.Td>
+        <Table.Td style={{ fontSize: '13px' }}>{admin.name}</Table.Td>
         <Table.Td></Table.Td>
         <Table.Td></Table.Td>
         <Table.Td></Table.Td>
-        <Table.Td>Mason Group</Table.Td>
-        <Table.Td>2026-04-07 7:00</Table.Td>
-        <Table.Td>2026-04-07 16:00</Table.Td>
+        <Table.Td>{admin.group}</Table.Td>
+        <Table.Td></Table.Td>
+        <Table.Td></Table.Td>
         <Table.Td>
           <ThemeIcon>
             <Tooltip label="Add Activity">
-              <ActionIcon variant="light" size={32} radius="md" c="white">
+              <ActionIcon onClick={() => handleAddTaskAdmin(admin)} variant="light" size={32} radius="md" c="white">
                 <Plus size={16} />
               </ActionIcon>
             </Tooltip>
           </ThemeIcon>
-
         </Table.Td>
       </Table.Tr>
-      <TaskRowSub />
-      <TaskRowSub />
-      <TaskRowSub />
-      <TaskRowSub />
-      <TaskRowSub />
+      {tasks?.map((task) => {
+        return (
+          <TaskRowSub params={params} />
+        )
+      })}
+
     </>
   )
 })
 
 const TaskList = () => {
+  const { adminActivities } = useTaskContext();
+  const { phaseCode } = useParams();
+  const { user } = useAuth();
+  const username = user?.username
+
+  const params = {
+    username: username,
+    phaseCode: phaseCode,
+  }
+
   return (
     <Paper
       shadow="none"
@@ -53,7 +73,6 @@ const TaskList = () => {
             w={{ md: '35%', base: '100%' }}
             label="Search Admin"
             placeholder='Enter name of the admin'
-
           />
         </Group>
       </Group>
@@ -77,10 +96,9 @@ const TaskList = () => {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            <TaskRowHeader />
-            <TaskRowHeader />
-            <TaskRowHeader />
-            <TaskRowHeader />
+            {adminActivities.map((admin) => (
+              <TaskRowHeader key={admin.id} admin={admin} params={params} />
+            ))}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>

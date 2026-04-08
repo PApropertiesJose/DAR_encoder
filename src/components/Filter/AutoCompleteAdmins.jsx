@@ -14,11 +14,12 @@ import {
 import { getInitials } from '~/utils';
 import useFetchAdmin from '~/hooks/Filters/useFetchAdmin';
 import ErrorElement from '../ErrorElement';
-import { memo, useMemo, useState } from 'react';
+import { memo, useContext, useMemo, useState } from 'react';
+import { useTaskContext } from '~/Pages/TaskEntries/context';
 
-const AutoCompleteAdminOptions = memo(({ item }) => {
+const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
   return (
-    <Combobox.Option value={item} key={item.id} >
+    <Combobox.Option disabled={isAlreadyAdded} value={item} key={item.id} >
       <Group>
         <Avatar variant='light' color="primary">{getInitials(item)}</Avatar>
         <Stack gap={0}>
@@ -38,6 +39,7 @@ const AutoCompleteAdminOptions = memo(({ item }) => {
 const AutoCompleteAdmins = memo(({
   params
 }) => {
+  const { adminActivities, handleAddAdmin } = useTaskContext();
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
@@ -62,9 +64,12 @@ const AutoCompleteAdmins = memo(({
     return <ErrorElement>{errorMessage}</ErrorElement>;
   }
 
-  const options = filteredResults?.map((item) => (
-    <AutoCompleteAdminOptions item={item} key={item.id} />
-  ));
+  const options = filteredResults?.map((item) => {
+    const isExisting = adminActivities.some((x) => x.id == item.id);
+    return (
+      <AutoCompleteAdminOptions isAlreadyAdded={isExisting} item={item} key={item.id} />
+    )
+  });
 
   return (
     <>
@@ -73,8 +78,9 @@ const AutoCompleteAdmins = memo(({
       <Combobox
         w={"100%"}
         store={combobox}
-        onOptionSubmit={() => {
-          combobox.closeDropdown();
+        onOptionSubmit={(val) => {
+          handleAddAdmin(val);
+          // combobox.closeDropdown();
         }}
       >
         <Combobox.Target>

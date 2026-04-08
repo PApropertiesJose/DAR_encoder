@@ -1,26 +1,38 @@
 import { Badge, Tooltip, Combobox, InputBase, useCombobox, Input, Text, Loader, Group, Stack, Paper } from "@mantine/core";
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import useFetchActivity from "~/hooks/Filters/useFetchActivity";
 import { formatNumber } from "~/utils";
 
+const TaskActivityStatus = ({ status }) => {
+  if (status == "INCOMPLETE") return <Badge variant="outline" color="red" size="xs" radius="none">{status}</Badge>
+  if (status == "NOT YET STARTED") return <Badge variant="outline" c="dimmed" radius="none" size="xs">{status}</Badge>
+  if (status == "COMPLETED") return <Badge variant="filled" radius="none" size="xs">{status}</Badge>
+  if (status == "ONGOING") return <Badge variant="outline" radius="none" size="xs">{status}</Badge>
+}
 
 const TaskColumnActivitiesOptions = memo(({ item }) => {
   return (
-    <Combobox.Option>
-
+    <Combobox.Option disabled={item.status === "COMPLETED"} value={item}>
       <Group>
+        <Badge style={{ border: '1px solid var(--mantine-color-dimmed)' }} size="md" h={50} radius="xs" variant="light">PAD</Badge>
         <Stack gap={0} flex={1}>
           <Group justify="space-between">
             <Text size="xs" style={{ fontFamily: 'monospace' }}>{item.code}</Text>
-            <Badge variant="outline" size="xs">{item.status}</Badge>
+            <TaskActivityStatus status={item.status} />
           </Group>
           <Group gap={0} justify="space-between">
             <Text size="xs">{item.description}</Text>
-            <Text size="xs" style={{ fontFamily: 'monospace'}}>{formatNumber(item.accumulated_hours)}/hrs</Text>
+            <Group gap={0}>
+              <Text size="xs" style={{ fontFamily: 'monospace' }}>{formatNumber(item.accumulated_hours)}/hrs</Text>
+              <Text size="sm">/{formatNumber(item.budget)}/hrs</Text>
+            </Group>
           </Group>
           <Tooltip label="Prerequisite Tasks">
-            <Group>
-              <Badge size="xs" variant="outline" radius="none">PR14</Badge>
+            <Group wrap="wrap" gap={2}>
+              {item.pre_requisite_tasks.map((task) => {
+                if (task.pre_requisite_code == "") return null;
+                return <Badge>{task.pre_requisite_code}</Badge>
+              })}
             </Group>
           </Tooltip>
         </Stack>
@@ -29,32 +41,42 @@ const TaskColumnActivitiesOptions = memo(({ item }) => {
   );
 });
 
-const params = {
-  "username": 'jmdelacruz',
-  "constructionIndex": 'other-task',
-  "system": "NOAH_PAAPDC",
-  "phaseCode": "SJRF-2",
-  "model": "238",
-  "lot": "000",
-  "block": "000",
-  "lot_no": "0000"
-}
 
-const TaskColumnActivities = memo(() => {
+
+const TaskColumnActivities = memo(({
+  params,
+  term,
+  onChange
+}) => {
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
 
   const { data, isLoading, isError, error, isSuccess } = useFetchActivity({ params: params });
 
-  const [search, setSearch] = useState();
+  const [search, setSearch] = useState("");
 
-  const results = useMemo(() => {
+  useEffect(() => {
+    if (!term) setSearch("");
+    if (term) setSearch(term);
+  }, [term])
+
+  const filteredResults = useMemo(() => {
     if (!isSuccess) return [];
-    return data?.data ?? [];
-  }, [data, isSuccess])
 
-  const options = results?.map((item) => (
+    const list = data?.data ?? [];
+
+    if (!search) return list;
+
+    const searchLower = search.toLowerCase();
+
+    return list.filter((item) =>
+      item.code?.toLowerCase().includes(searchLower) ||
+      item.description?.toLowerCase().includes(searchLower)
+    );
+  }, [data, isSuccess, search]);
+
+  const options = filteredResults?.map((item) => (
     <TaskColumnActivitiesOptions item={item} key={item.code} />
   ))
 
@@ -62,34 +84,31 @@ const TaskColumnActivities = memo(() => {
     <Combobox
       w="100%"
       store={combobox}
-      onOptionSubmit={() => {
+      onOptionSubmit={(val) => {
+        onChange(val);
         combobox.closeDropdown();
       }}
     >
       <Combobox.Target>
         <InputBase
-          component="button"
-          type="button"
           pointer
-          rightSection={isLoading ? <Loader size={14} /> : <Combobox.Chevron />}
+          rightSection={isLoading ? <Loader size={16} /> : <Combobox.Chevron />}
           rightSectionPointerEvents="none"
           onClick={() => {
             combobox.focusSearchInput();
             combobox.toggleDropdown();
           }}
+          value={search}
+          placeholder='CONSTRUCTION ACTIVITY'
+          onChange={(e) => {
+            combobox.updateSelectedOptionIndex();
+            setSearch(e.currentTarget.value)
+          }}
         >
-          <Input.Placeholder>
-            {search || 'Search Activity'}
-          </Input.Placeholder>
         </InputBase>
       </Combobox.Target>
 
       <Combobox.Dropdown>
-        <Combobox.Search
-          value={search}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          placeholder="Search by activity or code"
-        />
         <Combobox.Options
           mah={300}
           style={{ overflowY: 'auto' }}
