@@ -13,6 +13,22 @@ const App = () => {
     localStorage.getItem('color-scheme') || 'light'
   );
 
+  useEffect(() => {
+    // Listen for messages from SW
+    navigator.serviceWorker?.addEventListener('message', (event) => {
+      console.log('Message from SW:', event.data);
+    });
+
+    // Send message to SW when controller is ready
+    if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'PING',
+        payload: 'Hello from React!',
+      });
+    }
+  }, []);
+
+
   // 2. The "Manager" Effect: Listen for theme changes from your toggle button
   useEffect(() => {
     const handleThemeUpdate = () => {

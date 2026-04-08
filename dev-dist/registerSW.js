@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/DAR/dev-sw.js?dev-sw', { scope: '/DAR/', type: 'classic' })

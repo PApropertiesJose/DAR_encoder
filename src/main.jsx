@@ -5,6 +5,10 @@ import App from './App.jsx'
 import '@mantine/core/styles.css';
 import '@mantine/charts/styles.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerSW } from 'virtual:pwa-register'
+
+// Register the service worker
+registerSW({ immediate: true })
 
 const client = new QueryClient({
   defaultOptions: {
