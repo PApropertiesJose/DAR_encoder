@@ -7,9 +7,10 @@ import useAuth from "~/hooks/Auth/useAuth";
 import { DatePickerInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { useTaskContext } from "../context";
+import { useEffect } from "react";
 
 const TaskFieldForms = () => {
-  const { segmentedControl, handleChangeSegmentedControl } = useTaskContext();
+  const { segmentedControl, handleChangeSegmentedControl, db } = useTaskContext();
   const { state } = useLocation();
   const { user } = useAuth();
   const { phaseCode } = useParams();

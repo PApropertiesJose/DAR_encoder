@@ -1,5 +1,7 @@
 .env
 
+sql-wasm-browser.wasm
+
 # Logs
 logs
 *.log

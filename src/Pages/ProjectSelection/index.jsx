@@ -107,7 +107,6 @@ const ProjectSelection = () => {
 
   const [debounce] = useDebouncedValue(searchQuery, 500);
 
-
   return (
     <Container fluid p={0} m={0}>
       <Stack gap={0} pb={10} m={0}>
@@ -128,7 +127,7 @@ const ProjectSelection = () => {
       </Box>
 
       {/* 4. Pass the query down to the list */}
-      <ProjectList params={username} searchQuery={debounce} />
+      <ProjectList params={"jmdelacruz"} searchQuery={debounce} />
     </Container>
   );
 };

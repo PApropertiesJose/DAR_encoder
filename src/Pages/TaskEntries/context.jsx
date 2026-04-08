@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
+import initSqlJs from "sql.js";
+import { dbToJson } from "~/utils/dbHelper";
 
 const TaskContext = createContext(null);
 
@@ -13,30 +15,80 @@ export function useTaskContext() {
 
 const TaskProvider = ({ children }) => {
   const { phaseCode } = useParams();
+  const [db, setDb] = useState(null);
+  const [isDbReady, setIsDbReady] = useState(false);
+
   const [adminTasks, setAdminTask] = useState([]);
   const [segmentedControl, setSegmentedControl] = useState("ADD");
 
-  const handleChangeSegmentedControl = useCallback((val) => {
-    setSegmentedControl(val);
+  // --- 1. Initialize SQL.js on Mount ---
+  useEffect(() => {
+    async function initDB() {
+      try {
+        const SQL = await initSqlJs({
+          // Assumes sql-wasm.wasm is in your /public folder
+          locateFile: (file) => `/DAR/${file}`,
+        });
+
+        const newDb = new SQL.Database();
+
+        newDb.run(`create table IF NOT EXISTS task_entry_hdr ( id INTEGER PRIMARY KEY, adminWorker text, name text, system text DEFAULT 'NOAH_PAAPDC', phaseCode text, dateTimeIn text, ldb_created_date default current_timestamp, rec_user text, synch_date text )`);
+
+        setDb(newDb);
+        setIsDbReady(true);
+      } catch (err) {
+        throw new Error(err);
+      }
+    }
+    initDB();
+
+    return () => {
+      if (db) db.close();
+    };
   }, []);
 
+  //fetch the data from local
+  useEffect(() => {
+    if (!db) return;
+    const result = db.exec("SELECT * FROM task_entry_hdr");
+    const items = dbToJson(result);
+    // console.log(items);
+    setAdminTask(items);
+  }, [db]);
+
+
+  const handleChangeSegmentedControl = useCallback((val) => {
+    const result = db?.exec("SELECT * FROM task_entry_hdr")
+    const items = dbToJson(result);
+    console.log(items);
+    setSegmentedControl(val);
+  }, [db]);
+
   const handleAddAdmin = useCallback((val) => {
-    setAdminTask((prevState) => {
-      const exists = prevState.some(item => item.id === val.id);
-      if (exists) return prevState;
+    const exists = adminTasks.some(item => item.id === val.id);
+    if (exists) return;
 
-      const newAdmin = {
-        id: val.id,
-        name: val.name,
-        system: val.system,
-        phaseCode: phaseCode, 
-        group: val.groups,
-        tasks: [],
-      };
+    const newAdmin = {
+      id: val.id,
+      name: val.name,
+      system: val.system,
+      phaseCode: phaseCode,
+      group: val.groups,
+      tasks: [],
+    };
 
-      return [...prevState, newAdmin];
-    });
-  }, [phaseCode]); // ✅ ADDED: phaseCode must be a dependency
+    try {
+      db?.run(
+        `INSERT INTO task_entry_hdr(adminWorker, name, phaseCode, rec_user) VALUES(?, ?, ?, ?)`,
+        [newAdmin.id, newAdmin.name, phaseCode, 'jmdelacruz']
+      );
+
+      // 3. Update React state only after successful DB insertion
+      setAdminTask((prevState) => [...prevState, newAdmin]);
+    } catch (error) {
+      console.error("Failed to insert admin task:", error);
+    }
+  }, [db, phaseCode, adminTasks]); // Added adminTasks and db as dependencies
 
   const handleAddTaskAdmin = useCallback((val) => {
     setAdminTask((prevState) => {
@@ -64,13 +116,15 @@ const TaskProvider = ({ children }) => {
     handleAddAdmin,
     handleChangeSegmentedControl,
     segmentedControl,
-    handleAddTaskAdmin
+    handleAddTaskAdmin,
+    db
   }), [
-    adminTasks, 
-    handleAddAdmin, 
-    handleChangeSegmentedControl, 
-    segmentedControl, 
-    handleAddTaskAdmin
+    adminTasks,
+    handleAddAdmin,
+    handleChangeSegmentedControl,
+    segmentedControl,
+    handleAddTaskAdmin,
+    db
   ]);
 
   return (

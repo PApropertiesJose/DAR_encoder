@@ -17,7 +17,6 @@ const App = () => {
   useEffect(() => {
     const handleThemeUpdate = () => {
       const newScheme = localStorage.getItem('color-scheme') || 'light';
-      console.log(newScheme);
       setColorScheme(newScheme);
     };
 

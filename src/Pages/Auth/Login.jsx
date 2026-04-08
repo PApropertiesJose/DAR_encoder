@@ -57,7 +57,9 @@ const Login = () => {
     setIsLoading(true);
     loginMutation.mutate(form.getValues(), {
       onSuccess: (response) => {
+        console.log(response.data);
         setIsLoading(false);
+        
         onSetUserDetails(response.data.data, null)
         notifications.show({
           color: 'green',
