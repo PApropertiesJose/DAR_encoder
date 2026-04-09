@@ -7,22 +7,20 @@ const DateTimeIn = memo(({
   onChange
 }) => {
   return (
-    <Paper p={0} shadow="none" radius="xs">
-      <DateTimePicker
-        onChange={(e) => onChange(e)}
-        value={timeIn}
-        valueFormat="YYYY-MM-DD HH:mm"
-        styles={{
-          input: {
-            padding: '0 5px',
-            fontFamily: 'monospace',
-            letterSpacing: '0.05em'
-          }
-        }}
-        variant="unstyled"
-        placeholder="Input Time In"
-      />
-    </Paper>
+    <DateTimePicker
+      onChange={(e) => onChange(e)}
+      value={timeIn}
+      valueFormat="YYYY-MM-DD HH:mm"
+      styles={{
+        input: {
+          padding: '0 5px',
+          fontFamily: 'monospace',
+          letterSpacing: '0.05em'
+        }
+      }}
+      variant="default"
+      placeholder="Input Time In"
+    />
   );
 })
 

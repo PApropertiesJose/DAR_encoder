@@ -95,6 +95,7 @@ const TaskProvider = ({ children }) => {
       const index = prevState.findIndex(item => item.id === val.id);
       if (index === -1) return prevState;
 
+
       const admin = prevState[index];
       const tasks = admin.tasks ?? [];
 
@@ -110,7 +111,6 @@ const TaskProvider = ({ children }) => {
     });
   }, []);
 
-  // ✅ THE CRITICAL FIX: Memoize the context value
   const contextValue = useMemo(() => ({
     adminActivities: adminTasks,
     handleAddAdmin,
@@ -123,8 +123,12 @@ const TaskProvider = ({ children }) => {
     handleAddAdmin,
     handleChangeSegmentedControl,
     segmentedControl,
+<<<<<<< HEAD
     handleAddTaskAdmin,
     db
+=======
+    handleAddTaskAdmin
+>>>>>>> master
   ]);
 
   return (

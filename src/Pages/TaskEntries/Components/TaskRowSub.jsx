@@ -1,10 +1,11 @@
 import {
-  Badge, Select, NativeSelect, Tooltip, Table,
-  ActionIcon, Loader, Text, ThemeIcon
+  Group, Badge, Select, Stack, NativeSelect, Tooltip, Table,
+  ActionIcon, Loader, Text, ThemeIcon,
+  TextInput
 } from '@mantine/core';
 import { ChevronDown, Pen } from 'lucide-react';
 import { useParams } from 'react-router';
-import { memo, useCallback, useMemo, useReducer } from 'react';
+import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import useAuth from '~/hooks/Auth/useAuth';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
 import TaskColumnActivities from './TaskColumnActivities';
@@ -12,6 +13,7 @@ import DateTimeIn from './DateTimeIn';
 import DateTimeOut from './DateTimeOut';
 import { computeHoursPerActivity } from '~/utils';
 import TaskColumnLotComboBox from './TaskColumnLotComboBox';
+import { useDebouncedState } from '@mantine/hooks';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -30,7 +32,7 @@ const INITIAL_STATE = {
   timeIn: null,
   timeOut: null,
   actTerm: null,
-  activity: null,
+  activity: null
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -105,11 +107,12 @@ const TaskRowSub = memo(({
   params
 }) => {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
-
   const {
     constructionIndex, block, lot, lotObject,
-    timeIn, timeOut, actTerm,
+    timeIn, timeOut, actTerm, activity
   } = state;
+
+  const [justification, setJustication] = useDebouncedState("", 500);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -159,7 +162,7 @@ const TaskRowSub = memo(({
 
   const activityParams = useMemo(
     () => {
-      if(!block || !lotObject) return null;
+      if (!block || !lotObject) return null;
       return {
         username: params.username,
         constructionIndex: constructionIndex,
@@ -173,6 +176,21 @@ const TaskRowSub = memo(({
     },
     [lotObject, block]
   )
+
+  const budgetHours = useMemo(() => {
+    if (!activity) return 0;
+    return activity.budget
+  }, [activity?.budget])
+
+  const accumulatedHours = useMemo(() => {
+    if (!activity) return 0 + hoursPerActivity;
+    return (activity.accumulated_hours + parseFloat(hoursPerActivity)).toFixed(2);
+  }, [activity?.accumulated_hours, hoursPerActivity]);
+
+  const isRowOverbudget = useMemo(() => {
+    if (accumulatedHours > budgetHours) return true;
+    return false;
+  }, [budgetHours, accumulatedHours, hoursPerActivity])
 
   return (
     <Table.Tr>
@@ -201,17 +219,49 @@ const TaskRowSub = memo(({
       </Table.Td>
 
       <Table.Td>
-        <TaskColumnActivities
-          term={actTerm}
-          onChange={handleSelectActivity}
-          params={activityParams}
-        />
+        <Stack gap={10}>
+          <TaskColumnActivities
+            term={actTerm}
+            onChange={handleSelectActivity}
+            params={activityParams}
+          />
+          {isRowOverbudget && constructionIndex !== 'other-task' && (
+            <TextInput
+              defaultValue={justification}
+              required
+              placeholder='Enter Justification'
+              onChange={(e) => setJustication(e.currentTarget.value)}
+            />
+          )}
+        </Stack>
       </Table.Td>
 
       <Table.Td>
-        <Tooltip label="Hours">
-          <Text size="xs" ff="monospace">{hoursPerActivity}/hrs</Text>
-        </Tooltip>
+        <Group gap={0}>
+          <Tooltip label="Projected Hours">
+            <Text size="xs" ff="monospace">{hoursPerActivity}/</Text>
+          </Tooltip>
+          <Tooltip label="Accumulated Hours">
+            <Text
+              style={{
+                fontSize: isRowOverbudget ? "18px" : "14px",
+                fontWeight: isRowOverbudget ? "800" : "500",
+                transition: "all 0.3s ease",
+              }}
+              size="sm" ff="monospace" >{accumulatedHours}/</Text>
+          </Tooltip>
+          <Tooltip label="Budget Hours">
+            <Text
+              style={{
+                fontSize: !isRowOverbudget ? "18px" : "14px",
+                fontWeight: !isRowOverbudget ? "800" : "500",
+                transition: "all 0.3s ease"
+              }}
+              size="md">{budgetHours}</Text>
+
+          </Tooltip>
+
+        </Group>
       </Table.Td>
 
       <Table.Td>
