@@ -1,6 +1,6 @@
 import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
 import { Pickaxe, Plus } from 'lucide-react';
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import TaskRowSub from './TaskRowSub';
 import { useParams } from 'react-router';
 import useAuth from '~/hooks/Auth/useAuth';
@@ -13,6 +13,10 @@ const TaskRowHeader = memo(({
   const { handleAddTaskAdmin } = useTaskContext();
 
   const tasks = admin.tasks ?? [];
+
+  const memoParams = useMemo(() => {
+      return params;
+  }, [params.username, params.phaseCode])
 
   return (
     <>
@@ -34,9 +38,9 @@ const TaskRowHeader = memo(({
           </ThemeIcon>
         </Table.Td>
       </Table.Tr>
-      {tasks?.map((task) => {
+      {tasks?.map((task, index) => {
         return (
-          <TaskRowSub params={params} />
+          <TaskRowSub key={index} params={memoParams} />
         )
       })}
 

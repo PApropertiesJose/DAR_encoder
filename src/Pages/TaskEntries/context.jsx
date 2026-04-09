@@ -29,7 +29,7 @@ const TaskProvider = ({ children }) => {
         id: val.id,
         name: val.name,
         system: val.system,
-        phaseCode: phaseCode, 
+        phaseCode: phaseCode,
         group: val.groups,
         tasks: [],
       };
@@ -42,6 +42,7 @@ const TaskProvider = ({ children }) => {
     setAdminTask((prevState) => {
       const index = prevState.findIndex(item => item.id === val.id);
       if (index === -1) return prevState;
+
 
       const admin = prevState[index];
       const tasks = admin.tasks ?? [];
@@ -58,7 +59,6 @@ const TaskProvider = ({ children }) => {
     });
   }, []);
 
-  // ✅ THE CRITICAL FIX: Memoize the context value
   const contextValue = useMemo(() => ({
     adminActivities: adminTasks,
     handleAddAdmin,
@@ -66,10 +66,10 @@ const TaskProvider = ({ children }) => {
     segmentedControl,
     handleAddTaskAdmin
   }), [
-    adminTasks, 
-    handleAddAdmin, 
-    handleChangeSegmentedControl, 
-    segmentedControl, 
+    adminTasks,
+    handleAddAdmin,
+    handleChangeSegmentedControl,
+    segmentedControl,
     handleAddTaskAdmin
   ]);
 
