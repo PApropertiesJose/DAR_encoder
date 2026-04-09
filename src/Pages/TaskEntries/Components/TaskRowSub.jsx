@@ -6,13 +6,12 @@ import {
 } from '@mantine/core';
 import { CheckIcon, ChevronDown, Pen } from 'lucide-react';
 import { useParams } from 'react-router';
-import { memo, useCallback, useMemo, useReducer, useState } from 'react';
-import useAuth from '~/hooks/Auth/useAuth';
+import { memo, useCallback, useMemo, useReducer, useState, useEffect } from 'react';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
 import TaskColumnActivities from './TaskColumnActivities';
 import DateTimeIn from './DateTimeIn';
 import DateTimeOut from './DateTimeOut';
-import { computeHoursPerActivity } from '~/utils';
+import { computeHoursPerActivity, isTaskOverlapping } from '~/utils';
 import TaskColumnLotComboBox from './TaskColumnLotComboBox';
 import { useDebouncedState } from '@mantine/hooks';
 import useManageTaskEntryMutation from '~/hooks/TaskEntries/useManageTaskEntryMutation';
@@ -115,8 +114,13 @@ const BlockSelect = memo(({ value, params, onChange }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const TaskRowSub = memo(({
+  row,
+  tasks,
   params,
-  admin
+  workerId,
+  workerName,
+  workerSystem,
+  handleUpdateTaskAdmin
 }) => {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const {
@@ -126,40 +130,66 @@ const TaskRowSub = memo(({
 
   const [justification, setJustication] = useDebouncedState("", 500);
   const taskMutation = useManageTaskEntryMutation();
-  const { handleUpdateTaskAdmin } = useTaskContext();
 
-    console.log("rerenders: ", admin.name);
+  useEffect(() => {
+    if (justification) {
+      handleUpdateTaskAdmin(workerId, row, 'justification', justification);
+    }
+  }, [justification, handleUpdateTaskAdmin, workerId, row]);
+
+  console.log("rerenders: ", workerName);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSelectConstruction = useCallback(
-    (e) => dispatch({ type: 'SET_CONSTRUCTION', payload: e.currentTarget.value }),
-    []
+    (e) => {
+      const val = e.currentTarget.value;
+      dispatch({ type: 'SET_CONSTRUCTION', payload: val });
+      handleUpdateTaskAdmin(workerId, row, 'category', val);
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   const handleSelectBlock = useCallback(
-    (val) => dispatch({ type: 'SET_BLOCK', payload: val }),
-    []
+    (val) => {
+      handleUpdateTaskAdmin(workerId, row, 'block', val);
+      dispatch({ type: 'SET_BLOCK', payload: val })
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   const handleSelectLot = useCallback(
-    (val) => dispatch({ type: 'SET_LOT', payload: val }),
-    []
+    (val) => {
+      handleUpdateTaskAdmin(workerId, row, 'lot', val.code);
+      handleUpdateTaskAdmin(workerId, row, 'lotObject', val);
+      dispatch({ type: 'SET_LOT', payload: val })
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   const handleTimeIn = useCallback(
-    (val) => dispatch({ type: 'SET_TIME_IN', payload: val }),
-    []
+    (val) => {
+      handleUpdateTaskAdmin(workerId, row, 'timeIn', val);
+      dispatch({ type: 'SET_TIME_IN', payload: val })
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   const handleTimeOut = useCallback(
-    (val) => dispatch({ type: 'SET_TIME_OUT', payload: val }),
-    []
+    (val) => {
+      handleUpdateTaskAdmin(workerId, row, 'timeOut', val);
+      dispatch({ type: 'SET_TIME_OUT', payload: val })
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   const handleSelectActivity = useCallback(
-    (val) => dispatch({ type: 'SET_ACTIVITY', payload: val }),
-    []
+    (val) => {
+      handleUpdateTaskAdmin(workerId, row, 'activity', val);
+      handleUpdateTaskAdmin(workerId, row, 'actTerm', val.description);
+      dispatch({ type: 'SET_ACTIVITY', payload: val })
+    },
+    [handleUpdateTaskAdmin, workerId, row]
   );
 
   // ── Derived State ─────────────────────────────────────────────────────────
@@ -175,6 +205,8 @@ const TaskRowSub = memo(({
     () => ({ ...params, block }),
     [params, block]
   );
+
+  const isOverlapping = useMemo(() => isTaskOverlapping(tasks, row), [tasks, row]);
 
   const activityParams = useMemo(
     () => {
@@ -215,9 +247,9 @@ const TaskRowSub = memo(({
       modelCode: lotObject?.model,
       workers: [
         {
-          id: admin.adminWorker,
-          system: admin.system,
-          name: admin.name,
+          id: workerId,
+          system: workerSystem,
+          name: workerName,
           position: ""
         }
       ],
@@ -260,18 +292,32 @@ const TaskRowSub = memo(({
         dispatch({ type: "LOADING" });
       }
     })
-  }, [justification])
+  }, [
+    params.phaseCode,
+    lotObject,
+    workerId,
+    workerSystem,
+    workerName,
+    activity,
+    timeOut,
+    timeIn,
+    justification,
+    constructionIndex,
+    block,
+    lot,
+    taskMutation
+  ])
 
 
   return (
-    <Table.Tr bg="red.4">
-      <Table.Td>
+    <Table.Tr bg={isOverlapping ? "red.1" : undefined}>
+      < Table.Td >
         <NativeSelect
           value={constructionIndex}
           data={CONSTRUCTION_TYPES}
           onChange={handleSelectConstruction}
         />
-      </Table.Td>
+      </Table.Td >
 
       <Table.Td>
         <BlockSelect
@@ -350,7 +396,7 @@ const TaskRowSub = memo(({
           </ActionIcon>
         </Tooltip>
       </Table.Td>
-    </Table.Tr>
+    </Table.Tr >
   );
 });
 

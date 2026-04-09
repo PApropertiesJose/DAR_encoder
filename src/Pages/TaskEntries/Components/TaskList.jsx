@@ -9,7 +9,8 @@ import { useTaskContext } from '../context';
 const TaskRowHeader = memo(({
   admin,
   params,
-  onAdd
+  onAdd,
+  handleUpdateTaskAdmin
 }) => {
   const tasks = admin.tasks ?? [];
 
@@ -39,8 +40,18 @@ const TaskRowHeader = memo(({
         </Table.Td>
       </Table.Tr>
       {tasks?.map((task, index) => {
+        console.log(task);
         return (
-          <TaskRowSub key={`${admin.adminWorker}-${index}`} admin={admin} params={params} />
+          <TaskRowSub
+            row={index}
+            tasks={tasks}
+            key={`${admin.adminWorker}-${index}`}
+            workerId={admin.adminWorker}
+            workerName={admin.name}
+            workerSystem={admin.system}
+            params={params}
+            handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+          />
         )
       })}
 
@@ -49,7 +60,7 @@ const TaskRowHeader = memo(({
 })
 
 const TaskList = () => {
-  const { adminActivities, handleAddTaskAdmin } = useTaskContext();
+  const { adminActivities, handleAddTaskAdmin, handleUpdateTaskAdmin } = useTaskContext();
   const { phaseCode } = useParams();
   const { user } = useAuth();
   const username = user?.username
@@ -101,7 +112,13 @@ const TaskList = () => {
           </Table.Thead>
           <Table.Tbody>
             {adminActivities.map((admin) => (
-              <TaskRowHeader key={admin.adminWorker} admin={admin} params={memoParams} onAdd={handleAddTaskAdmin} />
+              <TaskRowHeader
+                key={admin.adminWorker}
+                admin={admin}
+                params={memoParams}
+                onAdd={handleAddTaskAdmin}
+                handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+              />
             ))}
           </Table.Tbody>
         </Table>

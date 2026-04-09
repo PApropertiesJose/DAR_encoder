@@ -43,14 +43,6 @@ const TaskProvider = ({ children }) => {
     };
   }, []);
 
-  //fetch the data from local
-  useEffect(() => {
-    if (!database?.db || !selectedDate) return;
-    const result = database?.db.exec("SELECT * FROM task_entry_hdr where dateTimeIn = ?", [selectedDate]);
-    const items = dbToJson(result);
-    setAdminTask(items);
-  }, [database?.db, selectedDate]);
-
   const handleSelectDate = useCallback((val) => {
     setSelectedDate(val);
   }, []);
@@ -76,9 +68,33 @@ const TaskProvider = ({ children }) => {
 
   }, [phaseCode]); // Added adminTasks and db as dependencies
 
-  const handleUpdateTaskAdmin = useCallback((admin, taskIndex, key, column) => {
-    console.log(admin);
+  const handleUpdateTaskAdmin = useCallback((workerId, taskIndex, key, column) => {
+    setAdminTask((prevState) => {
+      return prevState.map((admin) => {
+        if (admin.adminWorker !== workerId) {
+          return admin;
+        }
+
+        return {
+          ...admin,
+          tasks: admin.tasks.map((task, index) => {
+            if (index !== taskIndex) {
+              return task;
+            }
+
+            return {
+              ...task,
+              [key]: column
+            };
+          })
+        };
+      });
+    });
   }, []);
+
+  useEffect(() => {
+    console.log(adminTasks);
+  }, [adminTasks])
 
   const handleAddTaskAdmin = useCallback((val) => {
     setAdminTask((prevState) => {

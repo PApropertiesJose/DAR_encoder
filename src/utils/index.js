@@ -97,3 +97,20 @@ export const computeHoursPerActivity = ({
 
   return diffHours.toFixed(2);
 }
+
+export const isTaskOverlapping = (allTasks, currentIndex) => {
+  const currentTask = allTasks[currentIndex];
+  if (!currentTask || !currentTask.timeIn || !currentTask.timeOut) return false;
+
+  const startA = new Date(currentTask.timeIn);
+  const endA = new Date(currentTask.timeOut);
+
+  return allTasks.some((task, index) => {
+    if (index === currentIndex || !task.timeIn || !task.timeOut) return false;
+
+    const startB = new Date(task.timeIn);
+    const endB = new Date(task.timeOut);
+
+    return startA < endB && startB < endA;
+  });
+};
