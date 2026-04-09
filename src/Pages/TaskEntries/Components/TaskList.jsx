@@ -101,7 +101,7 @@ const TaskList = () => {
           </Table.Thead>
           <Table.Tbody>
             {adminActivities.map((admin) => (
-              <TaskRowHeader key={admin.id} admin={admin} params={params} />
+              <TaskRowHeader key={admin.adminWorker} admin={admin} params={params} />
             ))}
           </Table.Tbody>
         </Table>

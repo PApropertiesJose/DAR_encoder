@@ -10,7 +10,7 @@ import { useTaskContext } from "../context";
 import { useEffect } from "react";
 
 const TaskFieldForms = () => {
-  const { segmentedControl, handleChangeSegmentedControl, db } = useTaskContext();
+  const { segmentedControl, handleChangeSegmentedControl, handleSelectDate } = useTaskContext();
   const { state } = useLocation();
   const { user } = useAuth();
   const { phaseCode } = useParams();
@@ -100,6 +100,7 @@ const TaskFieldForms = () => {
             <DatePickerInput
               placeholder="Select a date"
               label="DATE"
+              onChange={(v) => handleSelectDate(v)}
               w={{
                 md: 300,
                 base: '100%'

@@ -1,3 +1,14 @@
+import { openDB } from "node_modules/idb/build";
+
+export const saveDB = async (dbRef) => {
+  console.log('attempting to saved from local db');
+  if (!dbRef) return;
+
+  const idb = await openDB("MyDatabase", 1);
+  const data = dbRef.export();
+
+  await idb.put("files", data, "sqlite-db");
+};
 
 export const dbToJson = (result) => {
   if (result.length > 0) {

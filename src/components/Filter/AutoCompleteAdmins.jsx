@@ -16,6 +16,7 @@ import useFetchAdmin from '~/hooks/Filters/useFetchAdmin';
 import ErrorElement from '../ErrorElement';
 import { memo, useContext, useMemo, useState } from 'react';
 import { useTaskContext } from '~/Pages/TaskEntries/context';
+import { notifications } from '@mantine/notifications';
 
 const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
   return (
@@ -39,7 +40,7 @@ const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
 const AutoCompleteAdmins = memo(({
   params
 }) => {
-  const { adminActivities, handleAddAdmin } = useTaskContext();
+  const { adminActivities, handleAddAdmin, selectedDate } = useTaskContext();
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
@@ -65,7 +66,7 @@ const AutoCompleteAdmins = memo(({
   }
 
   const options = filteredResults?.map((item) => {
-    const isExisting = adminActivities.some((x) => x.id == item.id);
+    const isExisting = adminActivities.some((x) => x.adminWorker == item.id);
     return (
       <AutoCompleteAdminOptions isAlreadyAdded={isExisting} item={item} key={item.id} />
     )
@@ -79,6 +80,14 @@ const AutoCompleteAdmins = memo(({
         w={"100%"}
         store={combobox}
         onOptionSubmit={(val) => {
+          if (!selectedDate) {
+            notifications.show({
+              color: 'red',
+              title: "Failed to Add admin!",
+              message: "Please select a date first"
+            })
+            return;
+          }
           handleAddAdmin(val);
           // combobox.closeDropdown();
         }}
