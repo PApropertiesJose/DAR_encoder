@@ -92,8 +92,35 @@ export const computeHoursPerActivity = ({
   const start = new Date(timeIn);
   const end = new Date(timeOut);
 
+  // Helper to construct break boundaries on the same day as 'start'
+  const getBreakTime = (date, hours, minutes) => {
+    const breakTime = new Date(date);
+    breakTime.setHours(hours, minutes, 0, 0);
+    return breakTime;
+  };
+
+  const amBreakStart = getBreakTime(start, 10, 0); // 10:00 AM
+  const amBreakEnd = getBreakTime(start, 10, 15);  // 10:15 AM
+
+  const pmBreakStart = getBreakTime(start, 16, 0); // 4:00 PM
+  const pmBreakEnd = getBreakTime(start, 16, 15);  // 4:15 PM
+
+  let deduction = 0;
+
+  // If time range is partially or fully within 10:00 AM - 10:15 AM
+  if (start < amBreakEnd && end > amBreakStart) {
+    deduction += 0.25;
+  }
+
+  // If time range is partially or fully within 4:00 PM - 4:15 PM
+  if (start < pmBreakEnd && end > pmBreakStart) {
+    deduction += 0.25;
+  }
+
   const diffMs = end - start; // difference in milliseconds
-  const diffHours = diffMs / (1000 * 60 * 60);
+  let diffHours = diffMs / (1000 * 60 * 60);
+
+  diffHours -= deduction;
 
   return diffHours.toFixed(2);
 }

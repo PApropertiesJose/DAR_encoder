@@ -17,6 +17,7 @@ import ErrorElement from '../ErrorElement';
 import { memo, useContext, useMemo, useState } from 'react';
 import { useTaskContext } from '~/Pages/TaskEntries/context';
 import { notifications } from '@mantine/notifications';
+import { useShallow } from 'zustand/react/shallow';
 
 const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
   return (
@@ -40,7 +41,9 @@ const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
 const AutoCompleteAdmins = memo(({
   params
 }) => {
-  const { adminActivities, handleAddAdmin, selectedDate } = useTaskContext();
+  const handleAddAdmin = useTaskContext(state => state.handleAddAdmin);
+  const selectedDate = useTaskContext(state => state.selectedDate);
+  const adminIds = useTaskContext(useShallow(state => state.adminActivities.map(a => a.adminWorker)));
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
@@ -66,7 +69,7 @@ const AutoCompleteAdmins = memo(({
   }
 
   const options = filteredResults?.map((item) => {
-    const isExisting = adminActivities.some((x) => x.adminWorker == item.id);
+    const isExisting = adminIds.some((id) => id == item.id);
     return (
       <AutoCompleteAdminOptions isAlreadyAdded={isExisting} item={item} key={item.id} />
     )

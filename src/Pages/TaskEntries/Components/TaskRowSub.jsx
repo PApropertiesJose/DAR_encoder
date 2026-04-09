@@ -115,7 +115,6 @@ const BlockSelect = memo(({ value, params, onChange }) => {
 
 const TaskRowSub = memo(({
   row,
-  tasks,
   params,
   workerId,
   workerName,
@@ -206,7 +205,11 @@ const TaskRowSub = memo(({
     [params, block]
   );
 
-  const isOverlapping = useMemo(() => isTaskOverlapping(tasks, row), [tasks, row]);
+  const isOverlapping = useTaskContext((state) => {
+    const admin = state.adminActivities.find((a) => a.adminWorker === workerId);
+    if (!admin) return false;
+    return isTaskOverlapping(admin.tasks ?? [], row);
+  });
 
   const activityParams = useMemo(
     () => {

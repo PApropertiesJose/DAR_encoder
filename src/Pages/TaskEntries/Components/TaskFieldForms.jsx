@@ -10,7 +10,9 @@ import { useTaskContext } from "../context";
 import { useEffect } from "react";
 
 const TaskFieldForms = () => {
-  const { segmentedControl, handleChangeSegmentedControl, handleSelectDate } = useTaskContext();
+  const segmentedControl = useTaskContext(state => state.segmentedControl);
+  const handleChangeSegmentedControl = useTaskContext(state => state.handleChangeSegmentedControl);
+  const handleSelectDate = useTaskContext(state => state.handleSelectDate);
   const { state } = useLocation();
   const { user } = useAuth();
   const { phaseCode } = useParams();

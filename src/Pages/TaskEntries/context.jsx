@@ -1,143 +1,107 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import { useParams } from "react-router";
+import { createStore, useStore } from "zustand";
 import { dbToJson, saveDB } from "~/utils/dbHelper";
 import DatabaseService from "~/hooks/Database";
 
 const TaskContext = createContext(null);
 
-
-export function useTaskContext() {
-  const context = useContext(TaskContext);
-  if (!context) {
+export function useTaskContext(selector) {
+  const store = useContext(TaskContext);
+  if (!store) {
     throw new Error("useTaskContext must be used within the TaskProvider");
   }
-  return context;
+  return useStore(store, selector);
 }
 
 const TaskProvider = ({ children }) => {
   const { phaseCode } = useParams();
-  const [database, setDatabase] = useState(null);
-  const [isDbReady, setIsDbReady] = useState(false);
-  const [adminTasks, setAdminTask] = useState([]);
-  const [segmentedControl, setSegmentedControl] = useState("ADD");
-  const [selectedDate, setSelectedDate] = useState();
-
-  useEffect(() => {
-    let dbInstance;
-
-    async function initDB() {
-      try {
-        const _db = await DatabaseService.init();
-        dbInstance = new DatabaseService(_db);
-        setDatabase(dbInstance);
-        setIsDbReady(true);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    initDB();
-
-    return () => {
-      if (dbInstance) dbInstance.db.close();
-    };
-  }, []);
-
-  const handleSelectDate = useCallback((val) => {
-    setSelectedDate(val);
-  }, []);
-
-  const handleChangeSegmentedControl = useCallback((val) => {
-    setSegmentedControl(val);
-  }, []);
-
-  const handleAddAdmin = useCallback(async (val) => {
-    const exists = adminTasks.some(item => item.adminWorker === val.id);
-    if (exists) return;
-
-    const newAdmin = {
-      adminWorker: val.id,
-      name: val.name,
-      system: val.system,
-      phaseCode: phaseCode,
-      group: val.groups,
-      tasks: [],
-    };
-
-    setAdminTask((prevState) => [...prevState, newAdmin]);
-
-  }, [phaseCode]); // Added adminTasks and db as dependencies
-
-  const handleUpdateTaskAdmin = useCallback((workerId, taskIndex, key, column) => {
-    setAdminTask((prevState) => {
-      return prevState.map((admin) => {
-        if (admin.adminWorker !== workerId) {
-          return admin;
+  
+  const storeRef = useRef();
+  if (!storeRef.current) {
+    storeRef.current = createStore((set, get) => ({
+      database: null,
+      isDbReady: false,
+      adminActivities: [],
+      segmentedControl: "ADD",
+      selectedDate: undefined,
+      
+      initDB: async () => {
+        try {
+          const _db = await DatabaseService.init();
+          set({ database: new DatabaseService(_db), isDbReady: true });
+        } catch (err) {
+          console.error(err);
         }
+      },
+      
+      handleSelectDate: (val) => set({ selectedDate: val }),
+      handleChangeSegmentedControl: (val) => set({ segmentedControl: val }),
+      
+      handleAddAdmin: (val) => {
+        const { adminActivities } = get();
+        const exists = adminActivities.some(item => item.adminWorker === val.id);
+        if (exists) return;
 
-        return {
-          ...admin,
-          tasks: admin.tasks.map((task, index) => {
-            if (index !== taskIndex) {
-              return task;
+        const newAdmin = {
+          adminWorker: val.id,
+          name: val.name,
+          system: val.system,
+          phaseCode: phaseCode,
+          group: val.groups,
+          tasks: [],
+        };
+
+        set({ adminActivities: [...adminActivities, newAdmin] });
+      },
+      
+      handleUpdateTaskAdmin: (workerId, taskIndex, key, column) => {
+        set((state) => ({
+          adminActivities: state.adminActivities.map((admin) => {
+            if (admin.adminWorker !== workerId) {
+              return admin;
             }
 
             return {
-              ...task,
-              [key]: column
+              ...admin,
+              tasks: admin.tasks.map((task, index) => {
+                if (index !== taskIndex) {
+                  return task;
+                }
+
+                return {
+                  ...task,
+                  [key]: column
+                };
+              })
             };
           })
-        };
-      });
-    });
-  }, []);
+        }));
+      },
+      
+      handleAddTaskAdmin: (val) => {
+        set((state) => ({
+          adminActivities: state.adminActivities.map((admin) => {
+            if (admin.adminWorker !== val.adminWorker) {
+              return admin;
+            }
+
+            return {
+              ...admin,
+              tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT' }]
+            };
+          })
+        }));
+      }
+    }));
+  }
 
   useEffect(() => {
-    console.log(adminTasks);
-  }, [adminTasks])
-
-  const handleAddTaskAdmin = useCallback((val) => {
-    setAdminTask((prevState) => {
-      return prevState.map((admin) => {
-        // If this isn't the admin we're looking for, return the original reference
-        if (admin.adminWorker !== val.adminWorker) {
-          return admin;
-        }
-
-        // If it IS the admin, create a new object reference for this one only
-        return {
-          ...admin,
-          tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT' }]
-        };
-      });
-    });
+    storeRef.current.getState().initDB();
   }, []);
 
-  const contextValue = useMemo(() => ({
-    adminActivities: adminTasks,
-    handleAddAdmin,
-    handleChangeSegmentedControl,
-    segmentedControl,
-    handleAddTaskAdmin,
-    database,
-    handleSelectDate,
-    selectedDate,
-    handleUpdateTaskAdmin,
-
-  }), [
-    adminTasks,
-    handleAddAdmin,
-    handleChangeSegmentedControl,
-    segmentedControl,
-    handleAddTaskAdmin,
-    database,
-    handleSelectDate,
-    selectedDate,
-    handleUpdateTaskAdmin,
-  ]);
-
   return (
-    <TaskContext.Provider value={contextValue}>
+    <TaskContext.Provider value={storeRef.current}>
       {children}
     </TaskContext.Provider>
   );

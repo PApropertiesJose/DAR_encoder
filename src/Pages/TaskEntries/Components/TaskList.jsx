@@ -1,32 +1,47 @@
 import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
 import { Pickaxe, Plus } from 'lucide-react';
 import { memo, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import TaskRowSub from './TaskRowSub';
 import { useParams } from 'react-router';
 import useAuth from '~/hooks/Auth/useAuth';
 import { useTaskContext } from '../context';
 
 const TaskRowHeader = memo(({
-  admin,
+  workerId,
   params,
   onAdd,
   handleUpdateTaskAdmin
 }) => {
-  const tasks = admin.tasks ?? [];
+  const adminInfo = useTaskContext(useShallow(state => {
+    const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
+    return { name: admin.name, group: admin.group, system: admin.system, taskCount: admin.tasks?.length || 0 };
+  }));
 
   const handleClick = () => {
-    onAdd(admin);
+    onAdd({ adminWorker: workerId });
   }
 
+  const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, index) => (
+    <TaskRowSub
+      row={index}
+      key={`${workerId}-${index}`}
+      workerId={workerId}
+      workerName={adminInfo.name}
+      workerSystem={adminInfo.system}
+      params={params}
+      handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+    />
+  ));
 
   return (
     <>
       <Table.Tr >
-        <Table.Td style={{ fontSize: '13px' }}>{admin.name}</Table.Td>
+        <Table.Td style={{ fontSize: '13px' }}>{adminInfo.name}</Table.Td>
         <Table.Td></Table.Td>
         <Table.Td></Table.Td>
         <Table.Td></Table.Td>
-        <Table.Td>{admin.group}</Table.Td>
+        <Table.Td>{adminInfo.group}</Table.Td>
         <Table.Td></Table.Td>
         <Table.Td></Table.Td>
         <Table.Td>
@@ -39,28 +54,16 @@ const TaskRowHeader = memo(({
           </ThemeIcon>
         </Table.Td>
       </Table.Tr>
-      {tasks?.map((task, index) => {
-        console.log(task);
-        return (
-          <TaskRowSub
-            row={index}
-            tasks={tasks}
-            key={`${admin.adminWorker}-${index}`}
-            workerId={admin.adminWorker}
-            workerName={admin.name}
-            workerSystem={admin.system}
-            params={params}
-            handleUpdateTaskAdmin={handleUpdateTaskAdmin}
-          />
-        )
-      })}
-
+      {taskSubRows}
     </>
   )
 })
 
 const TaskList = () => {
-  const { adminActivities, handleAddTaskAdmin, handleUpdateTaskAdmin } = useTaskContext();
+  const adminIds = useTaskContext(useShallow(state => state.adminActivities.map(a => a.adminWorker)));
+  const handleAddTaskAdmin = useTaskContext(state => state.handleAddTaskAdmin);
+  const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
+  
   const { phaseCode } = useParams();
   const { user } = useAuth();
   const username = user?.username
@@ -111,10 +114,10 @@ const TaskList = () => {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {adminActivities.map((admin) => (
+            {adminIds.map((id) => (
               <TaskRowHeader
-                key={admin.adminWorker}
-                admin={admin}
+                key={id}
+                workerId={id}
                 params={memoParams}
                 onAdd={handleAddTaskAdmin}
                 handleUpdateTaskAdmin={handleUpdateTaskAdmin}
