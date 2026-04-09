@@ -80,14 +80,14 @@ const AutoCompleteAdmins = memo(({
         w={"100%"}
         store={combobox}
         onOptionSubmit={(val) => {
-          if (!selectedDate) {
-            notifications.show({
-              color: 'red',
-              title: "Failed to Add admin!",
-              message: "Please select a date first"
-            })
-            return;
-          }
+          // if (!selectedDate) {
+          //   notifications.show({
+          //     color: 'red',
+          //     title: "Failed to Add admin!",
+          //     message: "Please select a date first"
+          //   })
+          //   return;
+          // }
           handleAddAdmin(val);
           // combobox.closeDropdown();
         }}

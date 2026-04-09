@@ -8,15 +8,14 @@ import { useTaskContext } from '../context';
 
 const TaskRowHeader = memo(({
   admin,
-  params
+  params,
+  onAdd
 }) => {
-  const { handleAddTaskAdmin } = useTaskContext();
-
   const tasks = admin.tasks ?? [];
 
-  const memoParams = useMemo(() => {
-      return params;
-  }, [params.username, params.phaseCode])
+  const handleClick = () => {
+    onAdd(admin);
+  }
 
   return (
     <>
@@ -31,7 +30,7 @@ const TaskRowHeader = memo(({
         <Table.Td>
           <ThemeIcon>
             <Tooltip label="Add Activity">
-              <ActionIcon onClick={() => handleAddTaskAdmin(admin)} variant="light" size={32} radius="md" c="white">
+              <ActionIcon onClick={handleClick} variant="light" size={32} radius="md" c="white">
                 <Plus size={16} />
               </ActionIcon>
             </Tooltip>
@@ -40,7 +39,7 @@ const TaskRowHeader = memo(({
       </Table.Tr>
       {tasks?.map((task, index) => {
         return (
-          <TaskRowSub key={index} params={memoParams} />
+          <TaskRowSub key={`${admin.adminWorker}-${index}`} params={params} />
         )
       })}
 
@@ -49,15 +48,15 @@ const TaskRowHeader = memo(({
 })
 
 const TaskList = () => {
-  const { adminActivities } = useTaskContext();
+  const { adminActivities, handleAddTaskAdmin } = useTaskContext();
   const { phaseCode } = useParams();
   const { user } = useAuth();
   const username = user?.username
 
-  const params = {
+  const memoParams = useMemo(() => ({
     username: username,
     phaseCode: phaseCode,
-  }
+  }), [username, phaseCode]);
 
   return (
     <Paper
@@ -101,7 +100,7 @@ const TaskList = () => {
           </Table.Thead>
           <Table.Tbody>
             {adminActivities.map((admin) => (
-              <TaskRowHeader key={admin.adminWorker} admin={admin} params={params} />
+              <TaskRowHeader key={admin.adminWorker} admin={admin} params={memoParams} onAdd={handleAddTaskAdmin} />
             ))}
           </Table.Tbody>
         </Table>

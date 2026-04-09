@@ -192,6 +192,7 @@ const TaskRowSub = memo(({
     return false;
   }, [budgetHours, accumulatedHours, hoursPerActivity])
 
+    
   return (
     <Table.Tr>
       <Table.Td>

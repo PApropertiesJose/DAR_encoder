@@ -72,40 +72,24 @@ const TaskProvider = ({ children }) => {
       tasks: [],
     };
 
-    try {
-      database.db?.run(
-        `INSERT INTO task_entry_hdr(adminWorker, name, phaseCode, dateTimeIn, rec_user) VALUES(?, ?, ?, ?, ?)`,
-        [newAdmin.adminWorker, newAdmin.name, phaseCode, selectedDate, 'jmdelacruz']
-      );
+    setAdminTask((prevState) => [...prevState, newAdmin]);
 
-      await database?.savedDb();
-
-      // 3. Update React state only after successful DB insertion
-      setAdminTask((prevState) => [...prevState, newAdmin]);
-
-    } catch (error) {
-      console.error("Failed to insert admin task:", error);
-    }
-  }, [database?.db, phaseCode, adminTasks, selectedDate]); // Added adminTasks and db as dependencies
+  }, [phaseCode]); // Added adminTasks and db as dependencies
 
   const handleAddTaskAdmin = useCallback((val) => {
     setAdminTask((prevState) => {
-      const index = prevState.findIndex(item => item.id === val.id);
-      if (index === -1) return prevState;
+      return prevState.map((admin) => {
+        // If this isn't the admin we're looking for, return the original reference
+        if (admin.id !== val.id) {
+          return admin;
+        }
 
-
-      const admin = prevState[index];
-      const tasks = admin.tasks ?? [];
-
-      const updatedAdmin = {
-        ...admin,
-        tasks: [...tasks, { category: 'HOUSEUNIT' }]
-      };
-
-      const newState = [...prevState];
-      newState[index] = updatedAdmin;
-
-      return newState;
+        // If it IS the admin, create a new object reference for this one only
+        return {
+          ...admin,
+          tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT' }]
+        };
+      });
     });
   }, []);
 
