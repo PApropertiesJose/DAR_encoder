@@ -1,9 +1,10 @@
 import {
   Group, Badge, Select, Stack, NativeSelect, Tooltip, Table,
   ActionIcon, Loader, Text, ThemeIcon,
-  TextInput
+  TextInput,
+  ModalContent
 } from '@mantine/core';
-import { ChevronDown, Pen } from 'lucide-react';
+import { CheckIcon, ChevronDown, Pen } from 'lucide-react';
 import { useParams } from 'react-router';
 import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import useAuth from '~/hooks/Auth/useAuth';
@@ -14,6 +15,9 @@ import DateTimeOut from './DateTimeOut';
 import { computeHoursPerActivity } from '~/utils';
 import TaskColumnLotComboBox from './TaskColumnLotComboBox';
 import { useDebouncedState } from '@mantine/hooks';
+import useManageTaskEntryMutation from '~/hooks/TaskEntries/useManageTaskEntryMutation';
+import { notifications } from '@mantine/notifications';
+import { useTaskContext } from '../context';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -32,7 +36,8 @@ const INITIAL_STATE = {
   timeIn: null,
   timeOut: null,
   actTerm: null,
-  activity: null
+  activity: null,
+  btnLoading: false,
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -74,6 +79,12 @@ function reducer(state, action) {
         activity: action.payload,
       };
 
+    case "LOADING":
+      return {
+        ...state,
+        btnLoading: !state.btnLoading
+      }
+
     default:
       return state;
   }
@@ -104,15 +115,20 @@ const BlockSelect = memo(({ value, params, onChange }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const TaskRowSub = memo(({
-  params
+  params,
+  admin
 }) => {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const {
     constructionIndex, block, lot, lotObject,
-    timeIn, timeOut, actTerm, activity
+    timeIn, timeOut, actTerm, activity, btnLoading
   } = state;
 
   const [justification, setJustication] = useDebouncedState("", 500);
+  const taskMutation = useManageTaskEntryMutation();
+  const { handleUpdateTaskAdmin } = useTaskContext();
+
+    console.log("rerenders: ", admin.name);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -192,9 +208,63 @@ const TaskRowSub = memo(({
     return false;
   }, [budgetHours, accumulatedHours, hoursPerActivity])
 
-    
+  const handleManageTaskEntry = useCallback(() => {
+    const request = {
+      system: "NOAH_PAAPDC",
+      phaseCode: params.phaseCode,
+      modelCode: lotObject?.model,
+      workers: [
+        {
+          id: admin.adminWorker,
+          system: admin.system,
+          name: admin.name,
+          position: ""
+        }
+      ],
+      tasks: [
+        {
+          code: activity?.code,
+          description: activity?.description,
+          isWithAdditional: false,
+          projected_time_out: timeOut,
+          justification: justification,
+          isOt: false,
+        }
+      ],
+      codes: [], //not required but needed in the request body
+      timeIn: timeIn,
+      category: constructionIndex,
+      block: block,
+      lot: lot,
+      isOt: false // create a state for identifying ot on hold;
+    }
+
+    dispatch({ type: "LOADING" });
+    taskMutation.mutate(request, {
+      onSuccess: () => {
+        notifications.show({
+          color: 'green',
+          title: "Successfully saved!",
+          message: "Task Entry added!",
+        });
+      },
+      onError: (error) => {
+        const errorMessage = error.response.data?.message ?? error.message;
+        notifications.show({
+          color: 'red',
+          title: "Failed to saved task entry",
+          message: errorMessage,
+        });
+      },
+      onSettled: () => {
+        dispatch({ type: "LOADING" });
+      }
+    })
+  }, [justification])
+
+
   return (
-    <Table.Tr>
+    <Table.Tr bg="red.4">
       <Table.Td>
         <NativeSelect
           value={constructionIndex}
@@ -275,8 +345,8 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <Tooltip label="Save">
-          <ActionIcon variant="light" size={32}>
-            <Pen size={12} />
+          <ActionIcon disabled={!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification)} loading={btnLoading} onClick={handleManageTaskEntry} variant="light" size={32}>
+            <CheckIcon size={12} />
           </ActionIcon>
         </Tooltip>
       </Table.Td>

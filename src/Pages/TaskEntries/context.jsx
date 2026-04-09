@@ -76,11 +76,15 @@ const TaskProvider = ({ children }) => {
 
   }, [phaseCode]); // Added adminTasks and db as dependencies
 
+  const handleUpdateTaskAdmin = useCallback((admin, taskIndex, key, column) => {
+    console.log(admin);
+  }, []);
+
   const handleAddTaskAdmin = useCallback((val) => {
     setAdminTask((prevState) => {
       return prevState.map((admin) => {
         // If this isn't the admin we're looking for, return the original reference
-        if (admin.id !== val.id) {
+        if (admin.adminWorker !== val.adminWorker) {
           return admin;
         }
 
@@ -101,7 +105,8 @@ const TaskProvider = ({ children }) => {
     handleAddTaskAdmin,
     database,
     handleSelectDate,
-    selectedDate
+    selectedDate,
+    handleUpdateTaskAdmin,
 
   }), [
     adminTasks,
@@ -111,7 +116,8 @@ const TaskProvider = ({ children }) => {
     handleAddTaskAdmin,
     database,
     handleSelectDate,
-    selectedDate
+    selectedDate,
+    handleUpdateTaskAdmin,
   ]);
 
   return (

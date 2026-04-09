@@ -17,6 +17,7 @@ const TaskRowHeader = memo(({
     onAdd(admin);
   }
 
+
   return (
     <>
       <Table.Tr >
@@ -39,7 +40,7 @@ const TaskRowHeader = memo(({
       </Table.Tr>
       {tasks?.map((task, index) => {
         return (
-          <TaskRowSub key={`${admin.adminWorker}-${index}`} params={params} />
+          <TaskRowSub key={`${admin.adminWorker}-${index}`} admin={admin} params={params} />
         )
       })}
 
