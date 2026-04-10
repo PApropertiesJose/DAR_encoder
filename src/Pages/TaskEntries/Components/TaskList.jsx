@@ -13,7 +13,9 @@ const TaskRowHeader = memo(({
   workerId,
   params,
   onAdd,
-  handleUpdateTaskAdmin
+  handleUpdateTaskAdmin,
+  handleDeleteTask,
+  control
 }) => {
   const adminInfo = useTaskContext(useShallow(state => {
     const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
@@ -26,6 +28,7 @@ const TaskRowHeader = memo(({
 
   const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, index) => (
     <TaskRowSub
+      control={control}
       row={index}
       key={`${workerId}-${index}`}
       workerId={workerId}
@@ -33,6 +36,7 @@ const TaskRowHeader = memo(({
       workerSystem={adminInfo.system}
       params={params}
       handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+      handleDeleteTask={handleDeleteTask}
       rowData={adminInfo.tasks[index]}
     />
   ));
@@ -50,7 +54,7 @@ const TaskRowHeader = memo(({
         <Table.Td>
           <ThemeIcon>
             <Tooltip label="Add Activity">
-              <ActionIcon onClick={handleClick} variant="light" size={32} radius="md" c="white">
+              <ActionIcon disabled={(control == "DELETE" || control == "UPDATE")} onClick={handleClick} variant="light" size={32} radius="md" c="white">
                 <Plus size={16} />
               </ActionIcon>
             </Tooltip>
@@ -75,6 +79,8 @@ const TaskList = () => {
   const handleAddTaskAdmin = useTaskContext(state => state.handleAddTaskAdmin);
   const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
   const handlePopulateAdmin = useTaskContext(state => state.handlePopulateAdmin);
+  const handleDeleteTask = useTaskContext(state => state.handleDeleteTask);
+  const segmentedControl = useTaskContext(state => state.segmentedControl);
 
   useEffect(() => {
     if (isSuccess) {
@@ -144,6 +150,8 @@ const TaskList = () => {
                 params={memoParams}
                 onAdd={handleAddTaskAdmin}
                 handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+                handleDeleteTask={handleDeleteTask}
+                control={segmentedControl}
               />
             ))}
           </Table.Tbody>

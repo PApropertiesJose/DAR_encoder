@@ -4,10 +4,12 @@ import { memo } from 'react';
 
 const DateTimeIn = memo(({
   timeIn,
-  onChange
+  onChange,
+  readOnly = false
 }) => {
   return (
     <DateTimePicker
+      readOnly={readOnly}
       onChange={(e) => onChange(e)}
       value={timeIn}
       valueFormat="YYYY-MM-DD HH:mm"

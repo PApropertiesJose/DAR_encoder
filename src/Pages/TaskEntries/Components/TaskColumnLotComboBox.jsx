@@ -18,6 +18,7 @@ const TaskColumnLotComboBox = ({
   params,
   onChange,
   lot = "",
+  readOnly = false,
 }) => {
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
@@ -26,8 +27,8 @@ const TaskColumnLotComboBox = ({
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if(lot) setSearch(lot);
-    if(!lot) setSearch(""); //clear if new block is selected
+    if (lot) setSearch(lot);
+    if (!lot) setSearch(""); //clear if new block is selected
   }, [lot])
 
   const { data, isLoading, isSuccess } = useFetchLot({ params: params });
@@ -70,6 +71,7 @@ const TaskColumnLotComboBox = ({
 
   return (
     <Combobox
+      disabled={readOnly}
       w="100%"
       store={combobox}
       onOptionSubmit={(val) => {
@@ -80,6 +82,7 @@ const TaskColumnLotComboBox = ({
       <Combobox.Target>
         <InputBase
           pointer
+          disabled={readOnly}
           rightSection={isLoading ? <Loader size={16} /> : <Combobox.Chevron />}
           rightSectionPointerEvents="none"
           onClick={() => {

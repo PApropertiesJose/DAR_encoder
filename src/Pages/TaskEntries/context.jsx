@@ -3,6 +3,9 @@ import { useParams } from "react-router";
 import { createStore, useStore } from "zustand";
 import { dbToJson, saveDB } from "~/utils/dbHelper";
 import DatabaseService from "~/hooks/Database";
+import useTaskDeleteMutation from "~/hooks/TaskEntries/useTaskDeleteMutation";
+import useAuth from "~/hooks/Auth/useAuth";
+import { notifications } from "@mantine/notifications";
 
 const TaskContext = createContext(null);
 
@@ -16,6 +19,8 @@ export function useTaskContext(selector) {
 
 const TaskProvider = ({ children }) => {
   const { phaseCode } = useParams();
+  const deleteTaskMutate = useTaskDeleteMutation();
+  const { user } = useAuth();
 
   const storeRef = useRef();
   if (!storeRef.current) {
@@ -98,6 +103,50 @@ const TaskProvider = ({ children }) => {
         }));
       },
 
+      handleDeleteTask: (workerId, taskIndex, rn) => {
+        const removeTaskFromState = () => {
+          set((state) => ({
+            adminActivities: state.adminActivities.map((admin) => {
+              if (admin.adminWorker !== workerId) {
+                return admin;
+              }
+              return {
+                ...admin,
+                tasks: admin.tasks.filter((_, index) => index !== taskIndex)
+              };
+            })
+          }));
+        };
+
+        if (!rn) {
+          removeTaskFromState();
+          return;
+        }
+
+        const params = {
+          username: user?.username,
+          rn: rn,
+        }
+
+        deleteTaskMutate.mutate(params, {
+          onSuccess: () => {
+            notifications.show({
+              color: 'green',
+              title: 'Task Deleted',
+              message: 'Task has been deleted successfully',
+            });
+            removeTaskFromState();
+          },
+          onError: () => {
+            notifications.show({
+              color: 'red',
+              title: 'Task Deletion Failed',
+              message: 'Task has not been deleted successfully',
+            })
+          }
+        });
+      },
+
       handleAddTaskAdmin: (val) => {
         set((state) => ({
           adminActivities: state.adminActivities.map((admin) => {
@@ -107,7 +156,7 @@ const TaskProvider = ({ children }) => {
 
             return {
               ...admin,
-              tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT', rn: "", justification: "" }]
+              tasks: [...(admin.tasks ?? []), { category: 'house-unit', rn: "", justification: "" }]
             };
           })
         }));

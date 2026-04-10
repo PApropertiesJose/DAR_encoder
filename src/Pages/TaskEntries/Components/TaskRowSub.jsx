@@ -4,9 +4,9 @@ import {
   TextInput,
   ModalContent
 } from '@mantine/core';
-import { CheckIcon, ChevronDown, Pen } from 'lucide-react';
+import { CheckIcon, ChevronDown, Pen, TrashIcon } from 'lucide-react';
 import { useParams } from 'react-router';
-import { memo, useCallback, useMemo, useReducer, useState, useEffect } from 'react';
+import { memo, useCallback, useMemo, useReducer, useState, useEffect, useRef } from 'react';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
 import TaskColumnActivities from './TaskColumnActivities';
 import DateTimeIn from './DateTimeIn';
@@ -28,6 +28,7 @@ const CONSTRUCTION_TYPES = [
 ];
 
 const INITIAL_STATE = {
+  rn: null,
   constructionIndex: 'house-unit',
   block: null,
   lot: null,
@@ -37,9 +38,31 @@ const INITIAL_STATE = {
   actTerm: null,
   activity: null,
   btnLoading: false,
-};
-
+}
 // ─── Reducer ─────────────────────────────────────────────────────────────────
+
+function init(initialData) {
+  if (initialData) {
+    return {
+      rn: initialData?.rn,
+      constructionIndex: initialData.category?.toLowerCase().replace('_', '-') || 'house-unit',
+      block: initialData.block ?? initialData.blk ?? null,
+      lot: initialData.lot ?? null,
+      lotObject: null,
+      timeIn: initialData.timeIn ?? initialData.dateTimeIn ?? null,
+      timeOut: initialData.timeOut ?? initialData.dateTimeOut ?? null,
+      actTerm: initialData.taskDescription ?? initialData.actTerm ?? null,
+      activity: initialData.taskCode ? {
+        code: initialData.taskCode,
+        description: initialData.taskDescription,
+        budget: initialData.budget ?? 0,
+        accumulated_hours: initialData.accumulated_hours ?? 0,
+      } : null,
+      btnLoading: initialData.btnLoading ?? false,
+    }
+  }
+  return INITIAL_STATE;
+}
 
 function reducer(state, action) {
   switch (action.type) {
@@ -47,7 +70,13 @@ function reducer(state, action) {
       return { ...INITIAL_STATE, constructionIndex: action.payload };
 
     case "SET_ROW_DATA":
-      return { ...action.payload };
+      console.log(action.payload.task);
+      return {
+        ...state,
+        ...action.payload.task,
+        lotObject: action.payload.task.lotObject !== undefined ? action.payload.task.lotObject : state.lotObject,
+        activity: action.payload.task.activity || state.activity
+      };
 
     case 'SET_BLOCK':
       return {
@@ -94,7 +123,7 @@ function reducer(state, action) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-const BlockSelect = memo(({ value, params, onChange }) => {
+const BlockSelect = memo(({ value, params, onChange, readOnly = false }) => {
   const { data, isLoading, isSuccess } = useFetchBlock({ params });
 
   const blocks = useMemo(
@@ -104,6 +133,7 @@ const BlockSelect = memo(({ value, params, onChange }) => {
 
   return (
     <Select
+      readOnly={readOnly}
       value={value}
       placeholder="BLOCK"
       data={blocks}
@@ -117,42 +147,65 @@ const BlockSelect = memo(({ value, params, onChange }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const TaskRowSub = memo(({
+  control,
   row,
   params,
   workerId,
   workerName,
   workerSystem,
   handleUpdateTaskAdmin,
+  handleDeleteTask,
   rowData,
 }) => {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, rowData, init);
   const {
-    constructionIndex, block, lot, lotObject,
+    rn, constructionIndex, block, lot, lotObject,
     timeIn, timeOut, actTerm, activity, btnLoading
   } = state;
 
-  const [justification, setJustication] = useDebouncedState("", 500);
+  const [justification, setJustication] = useDebouncedState(rowData?.justification, 500);
   const taskMutation = useManageTaskEntryMutation();
 
+  const isMounted = useRef(false);
+
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+
     if (rowData) {
       const task = {
-        constructionIndex: 'house-unit',
-        block: rowData.blk,
-        lot: rowData.lot,
-        lotObject: null,
-        timeIn: rowData.dateTimeIn,
-        timeOut: rowData.dateTimeOut,
-        actTerm: rowData.taskDescription,
-        activity: rowData.taskCode,
-        btnLoading: rowData.btnLoading,
+        rn: rowData?.rn,
+        constructionIndex: rowData.category?.toLowerCase().replace('_', '-') || 'house-unit',
+        block: rowData.block ?? rowData.blk ?? state.block,
+        lot: rowData.lot ?? state.lot,
+        timeIn: rowData.timeIn ?? rowData.dateTimeIn ?? state.timeIn,
+        timeOut: rowData.timeOut ?? rowData.dateTimeOut ?? state.timeOut,
+        actTerm: rowData.taskDescription ?? rowData.actTerm ?? state.actTerm,
+        activity: rowData.taskCode ? {
+          code: rowData.taskCode,
+          description: rowData.taskDescription,
+          budget: rowData.budget ?? state.activity?.budget ?? 0,
+          accumulated_hours: rowData.accumulated_hours ?? state.activity?.accumulated_hours ?? 0,
+        } : state.activity,
+        btnLoading: rowData.btnLoading ?? false,
       }
 
-      console.log(task);
-      dispatch({ type: 'SET_ROW_DATA', payload: task });
+      // Quick shallow compare to prevent redundant updates creating a render loop
+      if (
+        task.block !== state.block ||
+        task.lot !== state.lot ||
+        task.actTerm !== state.actTerm ||
+        task.timeIn !== state.timeIn ||
+        task.timeOut !== state.timeOut ||
+        task.constructionIndex !== state.constructionIndex ||
+        task.btnLoading !== state.btnLoading
+      ) {
+        dispatch({ type: 'SET_ROW_DATA', payload: { task: task } });
+      }
     }
-    // dispatch({ type: 'SET_CONSTRUCTION', payload: row.category });
-  }, [rowData]) //initial mount
+  }, [rowData]) //external updates without double-rendering on mount
 
   useEffect(() => {
     if (justification) {
@@ -219,6 +272,14 @@ const TaskRowSub = memo(({
     [handleUpdateTaskAdmin, workerId, row]
   );
 
+  const handleDeleteTaskActivity = useCallback(
+    () => {
+      const _rn = rn || null;
+      handleDeleteTask(workerId, row, _rn);
+    },
+    [handleDeleteTask, workerId, row]
+  );
+
   // ── Derived State ─────────────────────────────────────────────────────────
 
   const hoursPerActivity = useMemo(
@@ -241,19 +302,19 @@ const TaskRowSub = memo(({
 
   const activityParams = useMemo(
     () => {
-      if (!block || !lotObject) return null;
+      if (!block || !lot) return null;
       return {
         username: params.username,
         constructionIndex: constructionIndex,
         system: 'NOAH_PAAPDC',
         phaseCode: params.phaseCode,
-        model: lotObject?.model,
-        lot: lotObject?.lot_type,
+        model: lotObject?.model || "",
+        lot: lotObject?.lot_type || "",
         block: block,
-        lot_no: lotObject?.code,
+        lot_no: lotObject?.code || lot,
       }
     },
-    [lotObject, block]
+    [lotObject, block, lot, params, constructionIndex]
   )
 
   const budgetHours = useMemo(() => {
@@ -267,6 +328,7 @@ const TaskRowSub = memo(({
   }, [activity?.accumulated_hours, hoursPerActivity]);
 
   const isRowOverbudget = useMemo(() => {
+    if (!budgetHours) return false;
     if (accumulatedHours > budgetHours) return true;
     return false;
   }, [budgetHours, accumulatedHours, hoursPerActivity])
@@ -339,11 +401,15 @@ const TaskRowSub = memo(({
     taskMutation
   ])
 
+  const handleManageUpdateTaskEntry = useCallback(() => {
+    console.log(rn);
+  }, [])
 
   return (
-    <Table.Tr bg={isOverlapping ? "red.1" : "transparent"} >
+    <Table.Tr style={{ pointerEvents: (rn && control == 'UPDATE') || (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
       < Table.Td >
         <NativeSelect
+          disabled={(rn && (control == "ADD" || control == "DELETE"))}
           value={constructionIndex}
           data={CONSTRUCTION_TYPES}
           onChange={handleSelectConstruction}
@@ -352,6 +418,7 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <BlockSelect
+          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
           value={block}
           params={blockParams}
           onChange={handleSelectBlock}
@@ -360,6 +427,7 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <TaskColumnLotComboBox
+          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
           lot={lot}
           params={lotParams}
           onChange={handleSelectLot}
@@ -369,12 +437,14 @@ const TaskRowSub = memo(({
       <Table.Td>
         <Stack gap={10}>
           <TaskColumnActivities
+            readOnly={(rn && (control == "ADD" || control == "DELETE"))}
             term={actTerm}
             onChange={handleSelectActivity}
             params={activityParams}
           />
-          {isRowOverbudget && constructionIndex !== 'other-task' && (
+          {(constructionIndex !== 'other-task') && (justification) && (
             <TextInput
+              readOnly={(rn && (control == "ADD" || control == "DELETE"))}
               defaultValue={justification}
               required
               placeholder='Enter Justification'
@@ -396,7 +466,7 @@ const TaskRowSub = memo(({
                 fontWeight: isRowOverbudget ? "800" : "500",
                 transition: "all 0.3s ease",
               }}
-              size="sm" ff="monospace" >{accumulatedHours}/</Text>
+              size="sm" ff="monospace" >{accumulatedHours}</Text>
           </Tooltip>
           <Tooltip label="Budget Hours">
             <Text
@@ -405,27 +475,47 @@ const TaskRowSub = memo(({
                 fontWeight: !isRowOverbudget ? "800" : "500",
                 transition: "all 0.3s ease"
               }}
-              size="md">{budgetHours}</Text>
-
+              size="md">/{budgetHours}</Text>
           </Tooltip>
 
         </Group>
       </Table.Td>
 
       <Table.Td>
-        <DateTimeIn value={timeIn} onChange={handleTimeIn} />
+        <DateTimeIn
+          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          timeIn={timeIn} onChange={handleTimeIn} />
       </Table.Td>
 
       <Table.Td>
-        <DateTimeOut value={timeOut} onChange={handleTimeOut} />
+        <DateTimeOut
+          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          timeOut={timeOut} onChange={handleTimeOut} />
       </Table.Td>
 
       <Table.Td>
-        <Tooltip label="Save">
-          <ActionIcon disabled={!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping} loading={btnLoading} onClick={handleManageTaskEntry} size={32}>
-            <CheckIcon size={20} />
-          </ActionIcon>
-        </Tooltip>
+        {
+          (control == "ADD" && rn) || (control == "ADD") || (rn && control == "UPDATE") ? (
+            <Tooltip label={control == "ADD" || !rn ? "Save" : "Update"}>
+              <ActionIcon
+                disabled={
+                  control == "ADD" ?
+                    (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping) :
+                    budgetHours <= 0 ? true : false
+                }
+                loading={btnLoading}
+                onClick={control == "ADD" ? handleManageTaskEntry : handleManageUpdateTaskEntry} size={32}>
+                <CheckIcon size={20} />
+              </ActionIcon>
+            </Tooltip>
+          ) : (
+            <Tooltip label={"DELETE"}>
+              <ActionIcon onClick={handleDeleteTaskActivity} variant="light" color="red" loading={btnLoading} size={32}>
+                <TrashIcon size={18} />
+              </ActionIcon>
+            </Tooltip>
+          )
+        }
       </Table.Td>
     </Table.Tr >
   );

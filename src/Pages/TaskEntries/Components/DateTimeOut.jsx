@@ -4,11 +4,13 @@ import { memo } from 'react';
 
 const DateTimeOut = memo(({
   timeOut,
-  onChange
+  onChange,
+  readOnly
 }) => {
 
   return (
     <DateTimePicker
+      readOnly={readOnly}
       onChange={(e) => onChange(e)}
       value={timeOut}
       valueFormat="YYYY-MM-DD HH:mm"

@@ -46,7 +46,8 @@ const TaskColumnActivitiesOptions = memo(({ item }) => {
 const TaskColumnActivities = memo(({
   params,
   term,
-  onChange
+  onChange,
+  readOnly = false
 }) => {
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
@@ -84,6 +85,7 @@ const TaskColumnActivities = memo(({
     <Combobox
       w="100%"
       store={combobox}
+      disabled={readOnly}
       onOptionSubmit={(val) => {
         onChange(val);
         combobox.closeDropdown();
@@ -91,6 +93,7 @@ const TaskColumnActivities = memo(({
     >
       <Combobox.Target>
         <InputBase
+          disabled={readOnly}
           pointer
           rightSection={isLoading ? <Loader size={16} /> : <Combobox.Chevron />}
           rightSectionPointerEvents="none"
