@@ -15,6 +15,7 @@ const TaskRowHeader = memo(({
   onAdd,
   handleUpdateTaskAdmin,
   handleDeleteTask,
+  handleManageUpdateTask,
   control
 }) => {
   const adminInfo = useTaskContext(useShallow(state => {
@@ -37,6 +38,7 @@ const TaskRowHeader = memo(({
       params={params}
       handleUpdateTaskAdmin={handleUpdateTaskAdmin}
       handleDeleteTask={handleDeleteTask}
+      handleManageUpdateTask={handleManageUpdateTask}
       rowData={adminInfo.tasks[index]}
     />
   ));
@@ -72,7 +74,7 @@ const TaskList = () => {
       username: 'jmdelacruz',
       system: "NOAH_PAAPDC",
       phaseCode: "SJRF-2",
-      schedDate: "2026-04-10",
+      schedDate: "2026-03-10",
     }
   });
   const adminIds = useTaskContext(useShallow(state => state.adminActivities.map(a => a.adminWorker)));
@@ -80,6 +82,7 @@ const TaskList = () => {
   const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
   const handlePopulateAdmin = useTaskContext(state => state.handlePopulateAdmin);
   const handleDeleteTask = useTaskContext(state => state.handleDeleteTask);
+  const handleManageUpdateTask = useTaskContext(state => state.handleManageUpdateTask);
   const segmentedControl = useTaskContext(state => state.segmentedControl);
 
   useEffect(() => {
@@ -151,6 +154,7 @@ const TaskList = () => {
                 onAdd={handleAddTaskAdmin}
                 handleUpdateTaskAdmin={handleUpdateTaskAdmin}
                 handleDeleteTask={handleDeleteTask}
+                handleManageUpdateTask={handleManageUpdateTask}
                 control={segmentedControl}
               />
             ))}

@@ -123,6 +123,42 @@ function reducer(state, action) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+const TaskRowActionButton = memo(({
+  control,
+  rn,
+  isDisabled,
+  loading,
+  onSave,
+  onUpdate,
+  onDelete
+}) => {
+  const showSaveOrUpdate = control === "ADD" || (rn && control === "UPDATE");
+
+  if (showSaveOrUpdate) {
+    const isSave = control === "ADD" || !rn;
+    return (
+      <Tooltip label={isSave ? "Save" : "Update"}>
+        <ActionIcon
+          disabled={isDisabled}
+          loading={loading}
+          onClick={control === "ADD" ? onSave : onUpdate}
+          size={32}
+        >
+          <CheckIcon size={20} />
+        </ActionIcon>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip label="DELETE">
+      <ActionIcon onClick={onDelete} variant="light" color="red" loading={loading} size={32}>
+        <TrashIcon size={18} />
+      </ActionIcon>
+    </Tooltip>
+  );
+});
+
 const BlockSelect = memo(({ value, params, onChange, readOnly = false }) => {
   const { data, isLoading, isSuccess } = useFetchBlock({ params });
 
@@ -155,6 +191,7 @@ const TaskRowSub = memo(({
   workerSystem,
   handleUpdateTaskAdmin,
   handleDeleteTask,
+  handleManageUpdateTask,
   rowData,
 }) => {
   const [state, dispatch] = useReducer(reducer, rowData, init);
@@ -402,8 +439,8 @@ const TaskRowSub = memo(({
   ])
 
   const handleManageUpdateTaskEntry = useCallback(() => {
-    console.log(rn);
-  }, [])
+    handleManageUpdateTask(workerId, rn, { ...state, justification });
+  }, [justification])
 
   return (
     <Table.Tr style={{ pointerEvents: (rn && control == 'UPDATE') || (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
@@ -442,7 +479,7 @@ const TaskRowSub = memo(({
             onChange={handleSelectActivity}
             params={activityParams}
           />
-          {(constructionIndex !== 'other-task') && (justification) && (
+          {(constructionIndex !== 'other-task') && (isRowOverbudget || justification) && (
             <TextInput
               readOnly={(rn && (control == "ADD" || control == "DELETE"))}
               defaultValue={justification}
@@ -494,28 +531,19 @@ const TaskRowSub = memo(({
       </Table.Td>
 
       <Table.Td>
-        {
-          (control == "ADD" && rn) || (control == "ADD") || (rn && control == "UPDATE") ? (
-            <Tooltip label={control == "ADD" || !rn ? "Save" : "Update"}>
-              <ActionIcon
-                disabled={
-                  control == "ADD" ?
-                    (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping) :
-                    budgetHours <= 0 ? true : false
-                }
-                loading={btnLoading}
-                onClick={control == "ADD" ? handleManageTaskEntry : handleManageUpdateTaskEntry} size={32}>
-                <CheckIcon size={20} />
-              </ActionIcon>
-            </Tooltip>
-          ) : (
-            <Tooltip label={"DELETE"}>
-              <ActionIcon onClick={handleDeleteTaskActivity} variant="light" color="red" loading={btnLoading} size={32}>
-                <TrashIcon size={18} />
-              </ActionIcon>
-            </Tooltip>
-          )
-        }
+        <TaskRowActionButton
+          control={control}
+          rn={rn}
+          loading={btnLoading}
+          isDisabled={
+            control === "ADD"
+              ? (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping)
+              : (constructionIndex !== 'other-task' && budgetHours <= 0)
+          }
+          onSave={handleManageTaskEntry}
+          onUpdate={handleManageUpdateTaskEntry}
+          onDelete={handleDeleteTaskActivity}
+        />
       </Table.Td>
     </Table.Tr >
   );

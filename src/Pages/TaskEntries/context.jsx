@@ -6,6 +6,7 @@ import DatabaseService from "~/hooks/Database";
 import useTaskDeleteMutation from "~/hooks/TaskEntries/useTaskDeleteMutation";
 import useAuth from "~/hooks/Auth/useAuth";
 import { notifications } from "@mantine/notifications";
+import useManageTaskUpdateMutation from "~/hooks/TaskEntries/useManamgeTaskUpdateMutation";
 
 const TaskContext = createContext(null);
 
@@ -20,6 +21,7 @@ export function useTaskContext(selector) {
 const TaskProvider = ({ children }) => {
   const { phaseCode } = useParams();
   const deleteTaskMutate = useTaskDeleteMutation();
+  const manageTaskUpdateMutate = useManageTaskUpdateMutation();
   const { user } = useAuth();
 
   const storeRef = useRef();
@@ -101,6 +103,38 @@ const TaskProvider = ({ children }) => {
             };
           })
         }));
+      },
+
+      handleManageUpdateTask: (workerId, rn, task) => {
+        if (!rn) return;
+        const request = {
+          "rn": rn,
+          "category": task.constructionIndex,
+          "blk": task.block,
+          "lot": task.lot,
+          "taskCode": task.activity.code,
+          "taskDescription": task.activity.description,
+          "dateTimeIn": task.timeIn,
+          "dateTimeOut": task.timeOut,
+          "justification": task.justification
+        }
+
+        manageTaskUpdateMutate.mutate(request, {
+          onSuccess: () => {
+            notifications.show({
+              color: 'green',
+              title: 'Task Updated Successfully',
+              message: 'Task has been updated successfully',
+            })
+          },
+          onError: () => {
+            notifications.show({
+              color: 'red',
+              title: 'Task Update Failed',
+              message: 'Task has not been updated successfully',
+            })
+          }
+        })
       },
 
       handleDeleteTask: (workerId, taskIndex, rn) => {
