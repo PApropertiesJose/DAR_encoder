@@ -102,6 +102,9 @@ export const computeHoursPerActivity = ({
   const amBreakStart = getBreakTime(start, 10, 0); // 10:00 AM
   const amBreakEnd = getBreakTime(start, 10, 15);  // 10:15 AM
 
+  const lunchBreakStart = getBreakTime(start, 12, 0); // 12:00 PM
+  const lunchBreakEnd = getBreakTime(start, 13, 0);   // 1:00 PM
+
   const pmBreakStart = getBreakTime(start, 16, 0); // 4:00 PM
   const pmBreakEnd = getBreakTime(start, 16, 15);  // 4:15 PM
 
@@ -110,6 +113,11 @@ export const computeHoursPerActivity = ({
   // If time range is partially or fully within 10:00 AM - 10:15 AM
   if (start < amBreakEnd && end > amBreakStart) {
     deduction += 0.25;
+  }
+
+  // If time range is partially or fully within 12:00 PM - 1:00 PM
+  if (start < lunchBreakEnd && end > lunchBreakStart) {
+    deduction += 1;
   }
 
   // If time range is partially or fully within 4:00 PM - 4:15 PM

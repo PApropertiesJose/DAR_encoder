@@ -1,11 +1,13 @@
 import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
 import { Pickaxe, Plus } from 'lucide-react';
-import { memo, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import TaskRowSub from './TaskRowSub';
 import { useParams } from 'react-router';
 import useAuth from '~/hooks/Auth/useAuth';
 import { useTaskContext } from '../context';
+import useFetchTaskEntries from '~/hooks/TaskEntries/useFetchTaskEntries';
+import TableSkeleton from '~/components/Loading/TableSkeleton';
 
 const TaskRowHeader = memo(({
   workerId,
@@ -15,7 +17,7 @@ const TaskRowHeader = memo(({
 }) => {
   const adminInfo = useTaskContext(useShallow(state => {
     const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
-    return { name: admin.name, group: admin.group, system: admin.system, taskCount: admin.tasks?.length || 0 };
+    return { name: admin.name, group: admin.group, system: admin.system, taskCount: admin.tasks?.length || 0, tasks: admin?.tasks || [] };
   }));
 
   const handleClick = () => {
@@ -31,6 +33,7 @@ const TaskRowHeader = memo(({
       workerSystem={adminInfo.system}
       params={params}
       handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+      rowData={adminInfo.tasks[index]}
     />
   ));
 
@@ -60,10 +63,25 @@ const TaskRowHeader = memo(({
 })
 
 const TaskList = () => {
+  const { data, isLoading, isError, error, isSuccess } = useFetchTaskEntries({
+    params: {
+      username: 'jmdelacruz',
+      system: "NOAH_PAAPDC",
+      phaseCode: "SJRF-2",
+      schedDate: "2026-04-10",
+    }
+  });
   const adminIds = useTaskContext(useShallow(state => state.adminActivities.map(a => a.adminWorker)));
   const handleAddTaskAdmin = useTaskContext(state => state.handleAddTaskAdmin);
   const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
-  
+  const handlePopulateAdmin = useTaskContext(state => state.handlePopulateAdmin);
+
+  useEffect(() => {
+    if (isSuccess) {
+      handlePopulateAdmin(data.data);
+    }
+  }, [data, isSuccess, isLoading])
+
   const { phaseCode } = useParams();
   const { user } = useAuth();
   const username = user?.username
@@ -72,6 +90,11 @@ const TaskList = () => {
     username: username,
     phaseCode: phaseCode,
   }), [username, phaseCode]);
+
+  if (isLoading) {
+    return <TableSkeleton cols={4} />
+  }
+
 
   return (
     <Paper

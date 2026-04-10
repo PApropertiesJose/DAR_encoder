@@ -16,7 +16,7 @@ export function useTaskContext(selector) {
 
 const TaskProvider = ({ children }) => {
   const { phaseCode } = useParams();
-  
+
   const storeRef = useRef();
   if (!storeRef.current) {
     storeRef.current = createStore((set, get) => ({
@@ -25,7 +25,7 @@ const TaskProvider = ({ children }) => {
       adminActivities: [],
       segmentedControl: "ADD",
       selectedDate: undefined,
-      
+
       initDB: async () => {
         try {
           const _db = await DatabaseService.init();
@@ -34,16 +34,33 @@ const TaskProvider = ({ children }) => {
           console.error(err);
         }
       },
-      
+
       handleSelectDate: (val) => set({ selectedDate: val }),
       handleChangeSegmentedControl: (val) => set({ segmentedControl: val }),
-      
+
+      handlePopulateAdmin: (val) => {
+        set((state) => ({
+          adminActivities: val.map((admin) => {
+            return {
+              code: admin.code,
+              adminWorker: admin.adminWorker,
+              name: admin.name,
+              system: admin.system,
+              phaseCode: admin.phaseCode,
+              group: admin.group,
+              tasks: admin.tasks,
+            }
+          })
+        }));
+      },
+
       handleAddAdmin: (val) => {
         const { adminActivities } = get();
         const exists = adminActivities.some(item => item.adminWorker === val.id);
         if (exists) return;
 
         const newAdmin = {
+          code: "",
           adminWorker: val.id,
           name: val.name,
           system: val.system,
@@ -54,7 +71,7 @@ const TaskProvider = ({ children }) => {
 
         set({ adminActivities: [...adminActivities, newAdmin] });
       },
-      
+
       handleUpdateTaskAdmin: (workerId, taskIndex, key, column) => {
         set((state) => ({
           adminActivities: state.adminActivities.map((admin) => {
@@ -69,16 +86,18 @@ const TaskProvider = ({ children }) => {
                   return task;
                 }
 
+                const updates = typeof key === 'object' ? key : { [key]: column };
+
                 return {
                   ...task,
-                  [key]: column
+                  ...updates
                 };
               })
             };
           })
         }));
       },
-      
+
       handleAddTaskAdmin: (val) => {
         set((state) => ({
           adminActivities: state.adminActivities.map((admin) => {
@@ -88,7 +107,7 @@ const TaskProvider = ({ children }) => {
 
             return {
               ...admin,
-              tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT' }]
+              tasks: [...(admin.tasks ?? []), { category: 'HOUSEUNIT', rn: "", justification: "" }]
             };
           })
         }));

@@ -46,6 +46,9 @@ function reducer(state, action) {
     case 'SET_CONSTRUCTION':
       return { ...INITIAL_STATE, constructionIndex: action.payload };
 
+    case "SET_ROW_DATA":
+      return { ...action.payload };
+
     case 'SET_BLOCK':
       return {
         ...state,
@@ -119,7 +122,8 @@ const TaskRowSub = memo(({
   workerId,
   workerName,
   workerSystem,
-  handleUpdateTaskAdmin
+  handleUpdateTaskAdmin,
+  rowData,
 }) => {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const {
@@ -129,6 +133,26 @@ const TaskRowSub = memo(({
 
   const [justification, setJustication] = useDebouncedState("", 500);
   const taskMutation = useManageTaskEntryMutation();
+
+  useEffect(() => {
+    if (rowData) {
+      const task = {
+        constructionIndex: 'house-unit',
+        block: rowData.blk,
+        lot: rowData.lot,
+        lotObject: null,
+        timeIn: rowData.dateTimeIn,
+        timeOut: rowData.dateTimeOut,
+        actTerm: rowData.taskDescription,
+        activity: rowData.taskCode,
+        btnLoading: rowData.btnLoading,
+      }
+
+      console.log(task);
+      dispatch({ type: 'SET_ROW_DATA', payload: task });
+    }
+    // dispatch({ type: 'SET_CONSTRUCTION', payload: row.category });
+  }, [rowData]) //initial mount
 
   useEffect(() => {
     if (justification) {
@@ -160,7 +184,6 @@ const TaskRowSub = memo(({
   const handleSelectLot = useCallback(
     (val) => {
       handleUpdateTaskAdmin(workerId, row, 'lot', val.code);
-      handleUpdateTaskAdmin(workerId, row, 'lotObject', val);
       dispatch({ type: 'SET_LOT', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -184,8 +207,13 @@ const TaskRowSub = memo(({
 
   const handleSelectActivity = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, 'activity', val);
-      handleUpdateTaskAdmin(workerId, row, 'actTerm', val.description);
+      handleUpdateTaskAdmin(workerId, row, {
+        taskCode: val.code,
+        taskDescription: val.description,
+        budget: val.budget,
+        accumulated_hours: val.accumulated_hours
+      });
+      // handleUpdateTaskAdmin(workerId, row, 'actTerm', val.description);
       dispatch({ type: 'SET_ACTIVITY', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -313,7 +341,7 @@ const TaskRowSub = memo(({
 
 
   return (
-    <Table.Tr bg={isOverlapping ? "red.1" : undefined}>
+    <Table.Tr bg={isOverlapping ? "red.1" : "transparent"} >
       < Table.Td >
         <NativeSelect
           value={constructionIndex}
@@ -394,8 +422,8 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <Tooltip label="Save">
-          <ActionIcon disabled={!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification)} loading={btnLoading} onClick={handleManageTaskEntry} variant="light" size={32}>
-            <CheckIcon size={12} />
+          <ActionIcon disabled={!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping} loading={btnLoading} onClick={handleManageTaskEntry} size={32}>
+            <CheckIcon size={20} />
           </ActionIcon>
         </Tooltip>
       </Table.Td>
