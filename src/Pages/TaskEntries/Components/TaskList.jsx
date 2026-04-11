@@ -1,7 +1,8 @@
 import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
 import { Pickaxe, Plus } from 'lucide-react';
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { useVirtualizer } from '@tanstack/react-virtual';
 import TaskRowSub from './TaskRowSub';
 import { useParams } from 'react-router';
 import useAuth from '~/hooks/Auth/useAuth';
@@ -16,7 +17,9 @@ const TaskRowHeader = memo(({
   handleUpdateTaskAdmin,
   handleDeleteTask,
   handleManageUpdateTask,
-  control
+  control,
+  measureRef,
+  index
 }) => {
   const adminInfo = useTaskContext(useShallow(state => {
     const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
@@ -27,11 +30,11 @@ const TaskRowHeader = memo(({
     onAdd({ adminWorker: workerId });
   }
 
-  const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, index) => (
+  const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, i) => (
     <TaskRowSub
       control={control}
-      row={index}
-      key={`${workerId}-${index}`}
+      row={i}
+      key={`${workerId}-${i}`}
       workerId={workerId}
       workerName={adminInfo.name}
       workerSystem={adminInfo.system}
@@ -39,12 +42,12 @@ const TaskRowHeader = memo(({
       handleUpdateTaskAdmin={handleUpdateTaskAdmin}
       handleDeleteTask={handleDeleteTask}
       handleManageUpdateTask={handleManageUpdateTask}
-      rowData={adminInfo.tasks[index]}
+      rowData={adminInfo.tasks[i]}
     />
   ));
 
   return (
-    <>
+    <Table.Tbody ref={measureRef} data-index={index}>
       <Table.Tr >
         <Table.Td style={{ fontSize: '13px' }}>{adminInfo.name}</Table.Td>
         <Table.Td></Table.Td>
@@ -64,7 +67,7 @@ const TaskRowHeader = memo(({
         </Table.Td>
       </Table.Tr>
       {taskSubRows}
-    </>
+    </Table.Tbody>
   )
 })
 
@@ -100,10 +103,23 @@ const TaskList = () => {
     phaseCode: phaseCode,
   }), [username, phaseCode]);
 
+  const parentRef = useRef(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: adminIds.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100, // Estimate height per group (header + some tasks)
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom = virtualItems.length > 0
+    ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+    : 0;
+
   if (isLoading) {
     return <TableSkeleton cols={4} />
   }
-
 
   return (
     <Paper
@@ -128,40 +144,59 @@ const TaskList = () => {
       </Group>
       <Divider mt={10} mb={5} />
 
-      <Table.ScrollContainer minWidth={800}>
-        <Table
-          withRowBorders
-          withTableBorder
-        >
-          <Table.Thead >
-            <Table.Tr >
-              <Table.Th w={'12%'} >NAME</Table.Th>
-              <Table.Th w={"8%"}></Table.Th>
-              <Table.Th w={"15%"}></Table.Th>
-              <Table.Th w="30%" ></Table.Th>
-              <Table.Th>GROUP</Table.Th>
-              <Table.Th>TIME IN</Table.Th>
-              <Table.Th>TIME OUT</Table.Th>
-              <Table.Th w={5}>ACTION</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {adminIds.map((id) => (
+      <div ref={parentRef} style={{ height: '65vh', overflow: 'auto' }}>
+        <Table.ScrollContainer minWidth={800}>
+          <Table
+            withRowBorders
+            withTableBorder
+          >
+            <Table.Thead >
+              <Table.Tr >
+                <Table.Th w={'12%'} >NAME</Table.Th>
+                <Table.Th w={"8%"}></Table.Th>
+                <Table.Th w={"15%"}></Table.Th>
+                <Table.Th w="30%" ></Table.Th>
+                <Table.Th>GROUP</Table.Th>
+                <Table.Th>TIME IN</Table.Th>
+                <Table.Th>TIME OUT</Table.Th>
+                <Table.Th w={5}>ACTION</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+
+            {paddingTop > 0 && (
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td style={{ height: `${paddingTop}px`, padding: 0 }} colSpan={8} />
+                </Table.Tr>
+              </Table.Tbody>
+            )}
+
+            {virtualItems.map((virtualRow) => (
               <TaskRowHeader
-                key={id}
-                workerId={id}
+                key={adminIds[virtualRow.index]}
+                workerId={adminIds[virtualRow.index]}
                 params={memoParams}
                 onAdd={handleAddTaskAdmin}
                 handleUpdateTaskAdmin={handleUpdateTaskAdmin}
                 handleDeleteTask={handleDeleteTask}
                 handleManageUpdateTask={handleManageUpdateTask}
                 control={segmentedControl}
+                measureRef={rowVirtualizer.measureElement}
+                index={virtualRow.index}
               />
             ))}
-          </Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
 
+            {paddingBottom > 0 && (
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td style={{ height: `${paddingBottom}px`, padding: 0 }} colSpan={8} />
+                </Table.Tr>
+              </Table.Tbody>
+            )}
+
+          </Table>
+        </Table.ScrollContainer>
+      </div>
 
     </Paper>
   )

@@ -18,6 +18,9 @@ import useManageTaskEntryMutation from '~/hooks/TaskEntries/useManageTaskEntryMu
 import { notifications } from '@mantine/notifications';
 import { useTaskContext } from '../context';
 
+
+//TODO: fix the height of the scrollable component
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CONSTRUCTION_TYPES = [
@@ -125,7 +128,7 @@ function reducer(state, action) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 const TaskRowActionButton = memo(({
-  control,
+  // control,
   rn,
   isDisabled,
   loading,
@@ -133,7 +136,11 @@ const TaskRowActionButton = memo(({
   onUpdate,
   onDelete
 }) => {
+  const control = useTaskContext(state => state.segmentedControl);
   const showSaveOrUpdate = control === "ADD" || (rn && control === "UPDATE");
+
+
+  console.log("ACTION ICON RERENDERS: ", control);
 
   if (showSaveOrUpdate) {
     const isSave = control === "ADD" || !rn;
