@@ -1,0 +1,37 @@
+import { NativeSelect } from "@mantine/core";
+import { memo, useCallback, useState } from 'react';
+import { useTaskContext } from "../../context";
+import { shallow } from 'zustand/shallow';
+
+const CONSTRUCTION_TYPES = [
+  { label: 'House Unit', value: 'house-unit' },
+  { label: 'Other Task', value: 'other-task' },
+  { label: "Land Dev't", value: 'lan-dev' },
+  { label: 'Post Task', value: 'post-task' },
+];
+
+const ConstructionIndexSelect = memo(({
+  rn,
+}) => {
+  const control = useTaskContext(state => state.segmentedControl, shallow)
+  const [selectedIndex, setSelectedIndex] = useState('house-unit');
+
+  const handleSelect = useCallback((e) => {
+    setSelectedIndex(e.currentTarget.value);
+  }, []);
+
+  const isDisabled = rn && (control === "ADD" || control === "DELETE");
+
+    console.log('rerender selection: ');
+
+  return (
+    <NativeSelect
+      disabled={isDisabled}
+      value={selectedIndex}
+      onChange={handleSelect}
+      data={CONSTRUCTION_TYPES}
+    />
+  );
+})
+
+export default ConstructionIndexSelect

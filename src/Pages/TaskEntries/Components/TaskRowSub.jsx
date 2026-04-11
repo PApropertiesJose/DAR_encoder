@@ -6,12 +6,12 @@ import {
 } from '@mantine/core';
 import { CheckIcon, ChevronDown, Pen, TrashIcon } from 'lucide-react';
 import { useParams } from 'react-router';
-import { memo, useCallback, useMemo, useReducer, useState, useEffect, useRef } from 'react';
+import { memo, useCallback, useMemo, useReducer, useState, useEffect, useRef, useLayoutEffect } from 'react';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
 import TaskColumnActivities from './TaskColumnActivities';
 import DateTimeIn from './DateTimeIn';
 import DateTimeOut from './DateTimeOut';
-import { computeHoursPerActivity, isTaskOverlapping } from '~/utils';
+import { computeHoursPerActivity, isTaskOverlapping, realTimeTrackingOfOverlapHours } from '~/utils';
 import TaskColumnLotComboBox from './TaskColumnLotComboBox';
 import { useDebouncedState } from '@mantine/hooks';
 import useManageTaskEntryMutation from '~/hooks/TaskEntries/useManageTaskEntryMutation';
@@ -19,7 +19,7 @@ import { notifications } from '@mantine/notifications';
 import { useTaskContext } from '../context';
 
 
-//TODO: fix the height of the scrollable component
+//TODO: FIX THE UPDATE OF EACH FIELD reset & disabled the save button if it has existing RN which mean it isaved  in the database
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -72,14 +72,26 @@ function reducer(state, action) {
     case 'SET_CONSTRUCTION':
       return { ...INITIAL_STATE, constructionIndex: action.payload };
     case 'RESET':
-      return { ...INITIAL_STATE, constructionIndex: action.payload };
+      return { ...INITIAL_STATE, constructionIndex: action.payload, block: null, lot: null, actTerm: null, activity: null };
 
     case "SET_ROW_DATA":
       return {
         ...state,
-        ...action.payload.task,
-        lotObject: action.payload.task.lotObject !== undefined ? action.payload.task.lotObject : state.lotObject,
-        activity: action.payload.task.activity || state.activity
+        rn: action.payload.rn,
+        constructionIndex: action.payload.category,
+        block: action.payload.blk,
+        lot: action.payload.lot,
+        actTerm: action.payload.taskDescription,
+        activity: {
+          code: action.payload.taskCode,
+          description: action.payload.taskDescription,
+          accumulated_hours: action.payload.accumulatedHours,
+          budget: action.payload.budget || 0,
+        }
+
+
+        // lotObject: action.payload.task.lotObject !== undefined ? action.payload.task.lotObject : state.lotObject,
+        // activity: action.payload.task.activity || state.activity
       };
 
     case 'SET_BLOCK':
@@ -117,7 +129,7 @@ function reducer(state, action) {
     case "LOADING":
       return {
         ...state,
-        btnLoading: !state.btnLoading
+        btnLoading: action.payload
       }
 
     default:
@@ -138,9 +150,6 @@ const TaskRowActionButton = memo(({
 }) => {
   const control = useTaskContext(state => state.segmentedControl);
   const showSaveOrUpdate = control === "ADD" || (rn && control === "UPDATE");
-
-
-  console.log("ACTION ICON RERENDERS: ", control);
 
   if (showSaveOrUpdate) {
     const isSave = control === "ADD" || !rn;
@@ -202,70 +211,39 @@ const TaskRowSub = memo(({
   handleManageUpdateTask,
   rowData,
 }) => {
+  const admins = useTaskContext(state => state.adminActivities);
   const [state, dispatch] = useReducer(reducer, rowData);
   const {
     rn, constructionIndex, block, lot, lotObject,
     timeIn, timeOut, actTerm, activity, btnLoading
   } = state;
 
+  useEffect(() => {
+    console.log("RERENDERS: ", workerName);
+    console.log(rowData);
+    if (rowData?.rn) {
+      dispatch({ type: "SET_ROW_DATA", payload: rowData });
+    } else if (rowData?.category) {
+      dispatch({ type: 'RESET', payload: 'house-unit' })
+      setJustication("");
+    }
+  }, [rowData])
+
+
   const [justification, setJustication] = useDebouncedState(rowData?.justification, 500);
   const taskMutation = useManageTaskEntryMutation();
 
-  const isMounted = useRef(false);
-
-  useEffect(() => {
-    if (!isMounted.current) {
-      isMounted.current = true;
-      return;
-    }
-
-    if (rowData) {
-      const task = {
-        rn: rowData?.rn,
-        constructionIndex: rowData.category?.toLowerCase().replace('_', '-') || 'house-unit',
-        block: rowData.block ?? rowData.blk ?? state.block,
-        lot: rowData.lot ?? state.lot,
-        timeIn: rowData.timeIn ?? rowData.dateTimeIn ?? state.timeIn,
-        timeOut: rowData.timeOut ?? rowData.dateTimeOut ?? state.timeOut,
-        actTerm: rowData.taskDescription ?? rowData.actTerm ?? state.actTerm,
-        activity: rowData.taskCode ? {
-          code: rowData.taskCode,
-          description: rowData.taskDescription,
-          budget: rowData.budget ?? state.activity?.budget ?? 0,
-          accumulated_hours: rowData.accumulated_hours ?? state.activity?.accumulated_hours ?? 0,
-        } : state.activity,
-        btnLoading: rowData.btnLoading ?? false,
-      }
-
-      // Quick shallow compare to prevent redundant updates creating a render loop
-      if (
-        task.block !== state.block ||
-        task.lot !== state.lot ||
-        task.actTerm !== state.actTerm ||
-        task.timeIn !== state.timeIn ||
-        task.timeOut !== state.timeOut ||
-        task.constructionIndex !== state.constructionIndex ||
-        task.btnLoading !== state.btnLoading
-      ) {
-        dispatch({ type: 'SET_ROW_DATA', payload: { task: task } });
-      }
-    }
-  }, [rowData]) //external updates without double-rendering on mount
-
-  useEffect(() => {
-    if (justification) {
-      handleUpdateTaskAdmin(workerId, row, 'justification', justification);
-    }
-  }, [justification, handleUpdateTaskAdmin, workerId, row]);
-
-  console.log("rerenders: ", workerName);
+  // useEffect(() => {
+  //   if (justification) {
+  //     handleUpdateTaskAdmin(workerId, row, 'justification', justification);
+  //   }
+  // }, [justification, handleUpdateTaskAdmin, workerId, row]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSelectConstruction = useCallback(
     (e) => {
       const val = e.currentTarget.value;
-      // dispatch({ type: 'SET_CONSTRUCTION', payload: val });
       dispatch({ type: 'RESET', payload: val });
       handleUpdateTaskAdmin(workerId, row, 'category', val);
     },
@@ -274,7 +252,7 @@ const TaskRowSub = memo(({
 
   const handleSelectBlock = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, 'block', val);
+      // handleUpdateTaskAdmin(workerId, row, 'block', val);
       dispatch({ type: 'SET_BLOCK', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -282,7 +260,7 @@ const TaskRowSub = memo(({
 
   const handleSelectLot = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, 'lot', val.code);
+      // handleUpdateTaskAdmin(workerId, row, 'lot', val.code);
       dispatch({ type: 'SET_LOT', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -290,7 +268,7 @@ const TaskRowSub = memo(({
 
   const handleTimeIn = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, 'timeIn', val);
+      // handleUpdateTaskAdmin(workerId, row, 'timeIn', val);
       dispatch({ type: 'SET_TIME_IN', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -298,7 +276,7 @@ const TaskRowSub = memo(({
 
   const handleTimeOut = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, 'timeOut', val);
+      // handleUpdateTaskAdmin(workerId, row, 'timeOut', val);
       dispatch({ type: 'SET_TIME_OUT', payload: val })
     },
     [handleUpdateTaskAdmin, workerId, row]
@@ -306,12 +284,12 @@ const TaskRowSub = memo(({
 
   const handleSelectActivity = useCallback(
     (val) => {
-      handleUpdateTaskAdmin(workerId, row, {
-        taskCode: val.code,
-        taskDescription: val.description,
-        budget: val.budget,
-        accumulated_hours: val.accumulated_hours
-      });
+      // handleUpdateTaskAdmin(workerId, row, {
+      //   taskCode: val.code,
+      //   taskDescription: val.description,
+      //   budget: val.budget,
+      //   accumulated_hours: val.accumulated_hours
+      // });
       // handleUpdateTaskAdmin(workerId, row, 'actTerm', val.description);
       dispatch({ type: 'SET_ACTIVITY', payload: val })
     },
@@ -340,11 +318,25 @@ const TaskRowSub = memo(({
     [params, block]
   );
 
-  const isOverlapping = useTaskContext((state) => {
-    const admin = state.adminActivities.find((a) => a.adminWorker === workerId);
+
+  const isOverlapping = useMemo(() => {
+    const admin = admins.find((a) => a.adminWorker === workerId);
     if (!admin) return false;
-    return isTaskOverlapping(admin.tasks ?? [], row);
-  });
+    if (!timeIn || !timeOut) {
+      return isTaskOverlapping(admin.tasks ?? [], row);
+    } else {
+      return realTimeTrackingOfOverlapHours(timeIn, timeOut, admin.tasks)
+    }
+  }, [timeIn, timeOut])
+
+
+  // const isOverlapping = useTaskContext((state) => {
+  //   const admin = state.adminActivities.find((a) => a.adminWorker === workerId);
+  //   if (!admin) return false;
+  //   return isTaskOverlapping(admin.tasks ?? [], row);
+  // });
+  //
+  // console.log(isOverlapping);
 
   const activityParams = useMemo(
     () => {
@@ -380,29 +372,38 @@ const TaskRowSub = memo(({
   }, [budgetHours, accumulatedHours, hoursPerActivity])
 
   const handleManageTaskEntry = useCallback(() => {
+    const test = {
+      "system": "NOAH_PAAPDC",
+      "phaseCode": "SJRF-2",
+      "modelCode": "238",
+      "adminId": "2840",
+      "adminSystem": "HRIS",
+      "name": "Abaiz, Bobby",
+      "position": "Carpenter",
+      "code": "A01",
+      "description": "Rebarworks Fabrication - PAD",
+      "isWithAdditional": false,
+      "projected_time_out": "2026-04-09T12:00",
+      "justification": "",
+      "timeIn": "2026-04-09T07:00",
+      "category": "house-unit",
+      "block": "004",
+      "lot": "0002",
+      "isOt": false
+    }
+
     const request = {
       system: "NOAH_PAAPDC",
       phaseCode: params.phaseCode,
       modelCode: lotObject?.model,
-      workers: [
-        {
-          id: workerId,
-          system: workerSystem,
-          name: workerName,
-          position: ""
-        }
-      ],
-      tasks: [
-        {
-          code: activity?.code,
-          description: activity?.description,
-          isWithAdditional: false,
-          projected_time_out: timeOut,
-          justification: justification,
-          isOt: false,
-        }
-      ],
-      codes: [], //not required but needed in the request body
+      adminId: workerId,
+      adminSystem: "HRIS",
+      name: workerName,
+      position: "",
+      code: activity?.code,
+      description: activity?.description,
+      projected_time_out: timeOut,
+      justification: justification,
       timeIn: timeIn,
       category: constructionIndex,
       block: block,
@@ -410,9 +411,26 @@ const TaskRowSub = memo(({
       isOt: false // create a state for identifying ot on hold;
     }
 
-    dispatch({ type: "LOADING" });
+
+    dispatch({ type: "LOADING", payload: true });
     taskMutation.mutate(request, {
-      onSuccess: () => {
+      onSuccess: (response) => {
+        console.log('show response when adding');
+        console.log(response);
+        const rn = response.data[0]?.rn || null;
+        handleUpdateTaskAdmin(workerId, row, {
+          rn: rn,
+          blk: block,
+          category: constructionIndex,
+          dateTimeIn: timeIn,
+          dateTimeOut: timeOut,
+          justification: justification,
+          lot: lot,
+          taskCode: activity?.code,
+          taskDescription: actTerm,
+          accumulatedHours: activity?.accumulated_hours,
+        });
+
         notifications.show({
           color: 'green',
           title: "Successfully saved!",
@@ -428,7 +446,7 @@ const TaskRowSub = memo(({
         });
       },
       onSettled: () => {
-        dispatch({ type: "LOADING" });
+        dispatch({ type: "LOADING", payload: false });
       }
     })
   }, [
@@ -451,12 +469,19 @@ const TaskRowSub = memo(({
     handleManageUpdateTask(workerId, rn, { ...state, justification });
   }, [justification])
 
+
+  useEffect(() => {
+
+    console.log(rn)
+  }, [state])
+  // console.log("rerender: ", workerName);
+
   return (
     <Table.Tr style={{ pointerEvents: (rn && control == 'UPDATE') || (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
       < Table.Td >
         <NativeSelect
           disabled={(rn && (control == "ADD" || control == "DELETE"))}
-          value={constructionIndex}
+          value={rowData?.category || constructionIndex}
           data={CONSTRUCTION_TYPES}
           onChange={handleSelectConstruction}
         />
@@ -488,7 +513,8 @@ const TaskRowSub = memo(({
             onChange={handleSelectActivity}
             params={activityParams}
           />
-          {(constructionIndex !== 'other-task') && (isRowOverbudget || justification) && (
+          {/* {(constructionIndex !== 'other-task') && (isRowOverbudget || justification) && ( */}
+          {(constructionIndex !== 'other-task') && (isRowOverbudget) && (
             <TextInput
               readOnly={(rn && (control == "ADD" || control == "DELETE"))}
               defaultValue={justification}
@@ -530,13 +556,13 @@ const TaskRowSub = memo(({
       <Table.Td>
         <DateTimeIn
           readOnly={(rn && (control == "ADD" || control == "DELETE"))}
-          timeIn={timeIn} onChange={handleTimeIn} />
+          timeIn={rowData?.dateTimeIn || timeIn} onChange={handleTimeIn} />
       </Table.Td>
 
       <Table.Td>
         <DateTimeOut
           readOnly={(rn && (control == "ADD" || control == "DELETE"))}
-          timeOut={timeOut} onChange={handleTimeOut} />
+          timeOut={rowData?.dateTimeOut || timeOut} onChange={handleTimeOut} />
       </Table.Td>
 
       <Table.Td>
@@ -545,7 +571,7 @@ const TaskRowSub = memo(({
           rn={rn}
           loading={btnLoading}
           isDisabled={
-            control === "ADD"
+            control === "ADD" || control === "UPDATE"
               ? (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping)
               : (constructionIndex !== 'other-task' && budgetHours <= 0)
           }

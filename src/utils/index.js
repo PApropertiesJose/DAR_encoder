@@ -133,19 +133,54 @@ export const computeHoursPerActivity = ({
   return diffHours.toFixed(2);
 }
 
+export const realTimeTrackingOfOverlapHours = (timeIn, timeOut, allTasks) => {
+  const startA = new Date(timeIn);
+  const endA = new Date(timeOut);
+
+  return allTasks.some((task) => {
+
+    const startB = new Date(task.dateTimeIn);
+    const endB = new Date(task.dateTimeOut);
+
+    return startA < endB && startB < endA;
+  });
+}
+
 export const isTaskOverlapping = (allTasks, currentIndex) => {
   const currentTask = allTasks[currentIndex];
-  if (!currentTask || !currentTask.timeIn || !currentTask.timeOut) return false;
 
-  const startA = new Date(currentTask.timeIn);
-  const endA = new Date(currentTask.timeOut);
+  if (!currentTask || !currentTask.dateTimeIn || !currentTask.dateTimeOut) return false;
+
+  const startA = new Date(currentTask.dateTimeIn);
+  const endA = new Date(currentTask.dateTimeOut);
 
   return allTasks.some((task, index) => {
-    if (index === currentIndex || !task.timeIn || !task.timeOut) return false;
+    if (
+      index === currentIndex ||
+      !task.dateTimeIn ||
+      !task.dateTimeOut
+    ) return false;
 
-    const startB = new Date(task.timeIn);
-    const endB = new Date(task.timeOut);
+    const startB = new Date(task.dateTimeIn);
+    const endB = new Date(task.dateTimeOut);
 
     return startA < endB && startB < endA;
   });
 };
+// export const isTaskOverlapping = (allTasks, currentIndex) => {
+//   const currentTask = allTasks[currentIndex];
+//   if (!currentTask || !currentTask.timeIn || !currentTask.timeOut) return false;
+//
+//   const startA = new Date(currentTask.timeIn);
+//   const endA = new Date(currentTask.timeOut);
+//   console.log(allTasks);
+//
+//   return allTasks.some((task, index) => {
+//     if (index === currentIndex || !task.timeIn || !task.timeOut) return false;
+//
+//     const startB = new Date(task.timeIn);
+//     const endB = new Date(task.timeOut);
+//
+//     return startA < endB && startB < endA;
+//   });
+// };
