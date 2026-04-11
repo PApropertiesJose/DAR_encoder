@@ -11,7 +11,7 @@ const useFetchActivity = ({
       const response = await client.post(`/TaskAssignment/NewTaskAssignment/${params.username}/tasks/${params.constructionIndex}`, params);
       return response.data;
     },
-    enabled: !!params
+    enabled: false,
   });
 
 }

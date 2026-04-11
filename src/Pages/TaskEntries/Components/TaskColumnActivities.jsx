@@ -53,7 +53,13 @@ const TaskColumnActivities = memo(({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
 
-  const { data, isLoading, isError, error, isSuccess } = useFetchActivity({ params: params });
+  const { data, isLoading, isError, error, isSuccess, refetch } = useFetchActivity({ params: params });
+
+  useEffect(() => {
+    if (term) return;
+    if(!params?.block && !params?.lot_no) return;
+    refetch();
+  }, [refetch, params]);
 
   const [search, setSearch] = useState("");
 

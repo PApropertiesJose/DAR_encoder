@@ -68,9 +68,10 @@ function reducer(state, action) {
   switch (action.type) {
     case 'SET_CONSTRUCTION':
       return { ...INITIAL_STATE, constructionIndex: action.payload };
+    case 'RESET':
+      return { ...INITIAL_STATE, constructionIndex: action.payload };
 
     case "SET_ROW_DATA":
-      console.log(action.payload.task);
       return {
         ...state,
         ...action.payload.task,
@@ -194,7 +195,7 @@ const TaskRowSub = memo(({
   handleManageUpdateTask,
   rowData,
 }) => {
-  const [state, dispatch] = useReducer(reducer, rowData, init);
+  const [state, dispatch] = useReducer(reducer, rowData);
   const {
     rn, constructionIndex, block, lot, lotObject,
     timeIn, timeOut, actTerm, activity, btnLoading
@@ -257,7 +258,8 @@ const TaskRowSub = memo(({
   const handleSelectConstruction = useCallback(
     (e) => {
       const val = e.currentTarget.value;
-      dispatch({ type: 'SET_CONSTRUCTION', payload: val });
+      // dispatch({ type: 'SET_CONSTRUCTION', payload: val });
+      dispatch({ type: 'RESET', payload: val });
       handleUpdateTaskAdmin(workerId, row, 'category', val);
     },
     [handleUpdateTaskAdmin, workerId, row]
