@@ -55,6 +55,7 @@ const TaskProvider = ({ children }) => {
               system: admin.system,
               phaseCode: admin.phaseCode,
               group: admin.group,
+              control: "ADD",
               tasks: admin.tasks,
             }
           })
@@ -73,6 +74,7 @@ const TaskProvider = ({ children }) => {
           system: val.system,
           phaseCode: phaseCode,
           group: val.groups,
+          control: "ADD",
           tasks: [],
         };
 
