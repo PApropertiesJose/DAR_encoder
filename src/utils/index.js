@@ -1,3 +1,4 @@
+import moment from "moment";
 import { useEffect } from "react";
 import { useLocation } from "react-router";
 
@@ -85,8 +86,10 @@ export function getInitials(user) {
 
 export const computeHoursPerActivity = ({
   timeIn,
-  timeOut
+  timeOut,
+  projectedHours,
 }) => {
+  if(projectedHours) return projectedHours || 0;
   if (!timeIn || !timeOut) return 0;
 
   const start = new Date(timeIn);
@@ -134,22 +137,40 @@ export const computeHoursPerActivity = ({
 }
 
 export const realTimeTrackingOfOverlapHours = (timeIn, timeOut, allTasks) => {
-  const startA = new Date(timeIn);
-  const endA = new Date(timeOut);
+  const startA = moment(timeIn);
+  const endA = moment(timeOut);
 
   return allTasks.some((task) => {
+    if (!task.dateTimeIn || !task.dateTimeOut) return false;
 
-    const startB = new Date(task.dateTimeIn);
-    const endB = new Date(task.dateTimeOut);
+    const startB = moment(task.dateTimeIn);
+    const endB = moment(task.dateTimeOut);
 
-    return startA < endB && startB < endA;
+    if (!startB.isValid() || !endB.isValid()) return false;
+
+    return startA.isBefore(endB) && startB.isBefore(endA);
   });
+  // const startA = new Date(timeIn);
+  // const endA = new Date(timeOut);
+  //
+  //
+  // return allTasks.some((task) => {
+  //   console.log(startA, task.dateTimeIn.replace("T", ' '), 'initial value');
+  //   const startB = new Date(task.dateTimeIn); // "2026-04-10T07:00:00"
+  //   const endB = new Date(task.dateTimeOut); // "2026-04-10T10:00:00"
+  //
+  //   console.log(startB, 'final value');
+  //
+  //
+  //   return startA < endB && startB < endA;
+  // });
 }
 
 export const isTaskOverlapping = (allTasks, currentIndex) => {
   const currentTask = allTasks[currentIndex];
 
   if (!currentTask || !currentTask.dateTimeIn || !currentTask.dateTimeOut) return false;
+
 
   const startA = new Date(currentTask.dateTimeIn);
   const endA = new Date(currentTask.dateTimeOut);

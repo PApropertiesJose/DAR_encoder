@@ -140,7 +140,6 @@ function reducer(state, action) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 const TaskRowActionButton = memo(({
-  // control,
   rn,
   isDisabled,
   loading,
@@ -149,7 +148,7 @@ const TaskRowActionButton = memo(({
   onDelete
 }) => {
   const control = useTaskContext(state => state.segmentedControl);
-  const showSaveOrUpdate = control === "ADD" || (rn && control === "UPDATE");
+  const showSaveOrUpdate = control === "ADD";
 
   if (showSaveOrUpdate) {
     const isSave = control === "ADD" || !rn;
@@ -220,7 +219,6 @@ const TaskRowSub = memo(({
 
   useEffect(() => {
     console.log("RERENDERS: ", workerName);
-    console.log(rowData);
     if (rowData?.rn) {
       dispatch({ type: "SET_ROW_DATA", payload: rowData });
     } else if (rowData?.category) {
@@ -245,7 +243,7 @@ const TaskRowSub = memo(({
     (e) => {
       const val = e.currentTarget.value;
       dispatch({ type: 'RESET', payload: val });
-      handleUpdateTaskAdmin(workerId, row, 'category', val);
+      // handleUpdateTaskAdmin(workerId, row, 'category', val);
     },
     [handleUpdateTaskAdmin, workerId, row]
   );
@@ -307,8 +305,10 @@ const TaskRowSub = memo(({
   // ── Derived State ─────────────────────────────────────────────────────────
 
   const hoursPerActivity = useMemo(
-    () => computeHoursPerActivity({ timeIn, timeOut }),
-    [timeIn, timeOut]
+    () => {
+      return computeHoursPerActivity({ timeIn: timeIn, timeOut: timeOut, projectedHours: rowData?.projectedHours })
+    },
+    [timeIn, timeOut, rowData]
   );
 
   const blockParams = params
@@ -322,11 +322,10 @@ const TaskRowSub = memo(({
   const isOverlapping = useMemo(() => {
     const admin = admins.find((a) => a.adminWorker === workerId);
     if (!admin) return false;
-    if (!timeIn || !timeOut) {
-      return isTaskOverlapping(admin.tasks ?? [], row);
-    } else {
-      return realTimeTrackingOfOverlapHours(timeIn, timeOut, admin.tasks)
-    }
+    const hasOverlap = !timeIn || !timeOut ?
+      isTaskOverlapping(admin.tasks ?? [], row) :
+      realTimeTrackingOfOverlapHours(timeIn, timeOut, admin.tasks)
+    return hasOverlap
   }, [timeIn, timeOut])
 
 
@@ -372,27 +371,10 @@ const TaskRowSub = memo(({
   }, [budgetHours, accumulatedHours, hoursPerActivity])
 
   const handleManageTaskEntry = useCallback(() => {
-    const test = {
-      "system": "NOAH_PAAPDC",
-      "phaseCode": "SJRF-2",
-      "modelCode": "238",
-      "adminId": "2840",
-      "adminSystem": "HRIS",
-      "name": "Abaiz, Bobby",
-      "position": "Carpenter",
-      "code": "A01",
-      "description": "Rebarworks Fabrication - PAD",
-      "isWithAdditional": false,
-      "projected_time_out": "2026-04-09T12:00",
-      "justification": "",
-      "timeIn": "2026-04-09T07:00",
-      "category": "house-unit",
-      "block": "004",
-      "lot": "0002",
-      "isOt": false
-    }
+
 
     const request = {
+      rn: rn || null,
       system: "NOAH_PAAPDC",
       phaseCode: params.phaseCode,
       modelCode: lotObject?.model,
@@ -411,15 +393,12 @@ const TaskRowSub = memo(({
       isOt: false // create a state for identifying ot on hold;
     }
 
-
     dispatch({ type: "LOADING", payload: true });
     taskMutation.mutate(request, {
       onSuccess: (response) => {
-        console.log('show response when adding');
-        console.log(response);
-        const rn = response.data[0]?.rn || null;
+        const _rn = response.data[0]?.rn || null;
         handleUpdateTaskAdmin(workerId, row, {
-          rn: rn,
+          rn: _rn,
           blk: block,
           category: constructionIndex,
           dateTimeIn: timeIn,
@@ -438,7 +417,7 @@ const TaskRowSub = memo(({
         });
       },
       onError: (error) => {
-        const errorMessage = error.response.data?.message ?? error.message;
+        const errorMessage = error.response.data?.errorMessage ?? error.message;
         notifications.show({
           color: 'red',
           title: "Failed to saved task entry",
@@ -468,20 +447,14 @@ const TaskRowSub = memo(({
   const handleManageUpdateTaskEntry = useCallback(() => {
     handleManageUpdateTask(workerId, rn, { ...state, justification });
   }, [justification])
-
-
-  useEffect(() => {
-
-    console.log(rn)
-  }, [state])
   // console.log("rerender: ", workerName);
 
   return (
-    <Table.Tr style={{ pointerEvents: (rn && control == 'UPDATE') || (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
+    <Table.Tr style={{ pointerEvents: (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
       < Table.Td >
         <NativeSelect
           disabled={(rn && (control == "ADD" || control == "DELETE"))}
-          value={rowData?.category || constructionIndex}
+          value={constructionIndex}
           data={CONSTRUCTION_TYPES}
           onChange={handleSelectConstruction}
         />
@@ -514,7 +487,8 @@ const TaskRowSub = memo(({
             params={activityParams}
           />
           {/* {(constructionIndex !== 'other-task') && (isRowOverbudget || justification) && ( */}
-          {(constructionIndex !== 'other-task') && (isRowOverbudget) && (
+          {/* {(constructionIndex !== 'other-task') && (isRowOverbudget) &&  ( */}
+          {(rowData?.justification) || (constructionIndex !== 'other-task') && (isRowOverbudget) && (
             <TextInput
               readOnly={(rn && (control == "ADD" || control == "DELETE"))}
               defaultValue={justification}
@@ -571,8 +545,8 @@ const TaskRowSub = memo(({
           rn={rn}
           loading={btnLoading}
           isDisabled={
-            control === "ADD" || control === "UPDATE"
-              ? (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping)
+            control === "ADD"
+              ? rowData?.rn || (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping)
               : (constructionIndex !== 'other-task' && budgetHours <= 0)
           }
           onSave={handleManageTaskEntry}

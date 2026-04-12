@@ -81,15 +81,6 @@ const TaskFieldForms = () => {
                   )
                 },
                 {
-                  value: 'UPDATE',
-                  label: (
-                    <Center style={{ gap: 10, }}>
-                      <NotebookPen size={16} />
-                      <span>UPDATE</span>
-                    </Center>
-                  )
-                },
-                {
                   value: "DELETE",
                   label: (
                     <Center style={{ gap: 10, }}>
