@@ -140,6 +140,7 @@ function reducer(state, action) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 const TaskRowActionButton = memo(({
+  control,
   rn,
   isDisabled,
   loading,
@@ -147,7 +148,6 @@ const TaskRowActionButton = memo(({
   onUpdate,
   onDelete
 }) => {
-  const control = useTaskContext(state => state.segmentedControl);
   const showSaveOrUpdate = control === "ADD";
 
   if (showSaveOrUpdate) {
@@ -157,7 +157,7 @@ const TaskRowActionButton = memo(({
         <ActionIcon
           disabled={isDisabled}
           loading={loading}
-          onClick={control === "ADD" ? onSave : onUpdate}
+          onClick={control === "ADD" && onSave}
           size={32}
         >
           <CheckIcon size={20} />
@@ -165,6 +165,8 @@ const TaskRowActionButton = memo(({
       </Tooltip>
     );
   }
+
+    console.log(control)
 
   return (
     <Tooltip label="DELETE">

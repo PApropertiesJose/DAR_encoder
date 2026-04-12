@@ -1,6 +1,6 @@
-import { Tooltip, Paper, ThemeIcon, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
+import { Tooltip, Paper, ThemeIcon, SegmentedControl, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
 import { Pickaxe, Plus } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useVirtualizer } from '@tanstack/react-virtual';
 import TaskRowSub from './TaskRowSub';
@@ -21,6 +21,7 @@ const TaskRowHeader = memo(({
   measureRef,
   index
 }) => {
+  const [segmentedControl, setSegmentedControl] = useState('ADD');
   const adminInfo = useTaskContext(useShallow(state => {
     const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
     return { name: admin.name, group: admin.group, system: admin.system, taskCount: admin.tasks?.length || 0, tasks: admin?.tasks || [] };
@@ -32,7 +33,7 @@ const TaskRowHeader = memo(({
 
   const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, i) => (
     <TaskRowSub
-      control={control}
+      control={segmentedControl}
       row={i}
       key={`${workerId}-${i}`}
       workerId={workerId}
@@ -50,12 +51,14 @@ const TaskRowHeader = memo(({
     <Table.Tbody ref={measureRef} data-index={index}>
       <Table.Tr >
         <Table.Td style={{ fontSize: '13px' }}>{adminInfo.name}</Table.Td>
-        <Table.Td></Table.Td>
-        <Table.Td></Table.Td>
-        <Table.Td></Table.Td>
+        <Table.Td colSpan={3}>
+          <SegmentedControl variant="outline" color="primary" onChange={setSegmentedControl} fullWidth data={['ADD', 'DELETE']} />
+        </Table.Td>
+        {/* <Table.Td></Table.Td> */}
+        {/* <Table.Td></Table.Td> */}
         <Table.Td>{adminInfo.group}</Table.Td>
-        <Table.Td></Table.Td>
-        <Table.Td></Table.Td>
+        <Table.Td style={{ fontFamily: 'monospace' }}>{ adminInfo.tasks[0]?.dateTimeIn}</Table.Td>
+        <Table.Td style={{ fontFamily: 'monospace' }}>{adminInfo.tasks[adminInfo.tasks.length - 1]?.dateTimeOut}</Table.Td>
         <Table.Td>
           <ThemeIcon>
             <Tooltip label="Add Activity">
