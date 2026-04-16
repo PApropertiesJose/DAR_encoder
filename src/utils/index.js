@@ -89,7 +89,7 @@ export const computeHoursPerActivity = ({
   timeOut,
   projectedHours,
 }) => {
-  if(projectedHours) return projectedHours || 0;
+  if (projectedHours) return projectedHours || 0;
   if (!timeIn || !timeOut) return 0;
 
   const start = new Date(timeIn);
@@ -146,7 +146,13 @@ export const realTimeTrackingOfOverlapHours = (timeIn, timeOut, allTasks) => {
     const startB = moment(task.dateTimeIn);
     const endB = moment(task.dateTimeOut);
 
-    if (!startB.isValid() || !endB.isValid()) return false;
+    console.table({
+      startA: startA.format(),
+      endA: endA.format(),
+      startB: startB.format(),
+      endB: endB.format(),
+      overlaps: startA.isBefore(endB) && startB.isBefore(endA),
+    });
 
     return startA.isBefore(endB) && startB.isBefore(endA);
   });

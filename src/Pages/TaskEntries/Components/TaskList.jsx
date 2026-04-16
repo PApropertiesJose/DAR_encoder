@@ -1,5 +1,5 @@
-import { Tooltip, Paper, ThemeIcon, SegmentedControl, Group, Stack, Text, TextInput, Divider, Table, ActionIcon } from '@mantine/core'
-import { Pickaxe, Plus } from 'lucide-react';
+import { Tooltip, Paper, ThemeIcon, SegmentedControl, Group, Stack, Text, TextInput, Divider, Table, ActionIcon, Loader } from '@mantine/core'
+import { Clock, Pickaxe, Plus, WatchIcon } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -9,6 +9,7 @@ import useAuth from '~/hooks/Auth/useAuth';
 import { useTaskContext } from '../context';
 import useFetchTaskEntries from '~/hooks/TaskEntries/useFetchTaskEntries';
 import TableSkeleton from '~/components/Loading/TableSkeleton';
+import { useDebouncedValue, useDebouncedCallback } from '@mantine/hooks';
 
 const TaskRowHeader = memo(({
   workerId,
@@ -52,21 +53,32 @@ const TaskRowHeader = memo(({
       <Table.Tr >
         <Table.Td style={{ fontSize: '13px' }}>{adminInfo.name}</Table.Td>
         <Table.Td colSpan={3}>
-          <SegmentedControl variant="outline" color="primary" onChange={setSegmentedControl} fullWidth data={['ADD', 'DELETE']} />
+          <SegmentedControl variant="outlined" color="primary" onChange={setSegmentedControl} fullWidth data={['ADD', 'DELETE', 'END']} />
         </Table.Td>
         {/* <Table.Td></Table.Td> */}
         {/* <Table.Td></Table.Td> */}
         <Table.Td>{adminInfo.group}</Table.Td>
-        <Table.Td style={{ fontFamily: 'monospace' }}>{ adminInfo.tasks[0]?.dateTimeIn}</Table.Td>
+        <Table.Td style={{ fontFamily: 'monospace' }}>{adminInfo.tasks[0]?.dateTimeIn}</Table.Td>
         <Table.Td style={{ fontFamily: 'monospace' }}>{adminInfo.tasks[adminInfo.tasks.length - 1]?.dateTimeOut}</Table.Td>
         <Table.Td>
-          <ThemeIcon>
-            <Tooltip label="Add Activity">
-              <ActionIcon disabled={(control == "DELETE" || control == "UPDATE")} onClick={handleClick} variant="light" size={32} radius="md" c="white">
-                <Plus size={16} />
-              </ActionIcon>
-            </Tooltip>
-          </ThemeIcon>
+          {segmentedControl !== "END" ? (
+            <ThemeIcon>
+              <Tooltip label="Add Activity">
+                <ActionIcon disabled={(segmentedControl == "DELETE")} onClick={handleClick} variant="light" size={32} radius="md" c="white">
+                  <Plus size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </ThemeIcon>
+          ) : (
+            <ThemeIcon c="red">
+              <Tooltip label="END SHIFT">
+                <ActionIcon variant="filled" size="32" radius="md">
+                  <Clock size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </ThemeIcon>
+          )}
+
         </Table.Td>
       </Table.Tr>
       {taskSubRows}
@@ -74,22 +86,45 @@ const TaskRowHeader = memo(({
   )
 })
 
-const TaskList = () => {
+const TaskList = ({
+  params
+}) => {
   const { data, isLoading, isError, error, isSuccess } = useFetchTaskEntries({
-    params: {
-      username: 'jmdelacruz',
-      system: "NOAH_PAAPDC",
-      phaseCode: "SJRF-2",
-      schedDate: "2026-04-10",
-    }
+    params: params
   });
   const adminIds = useTaskContext(useShallow(state => state.adminActivities.map(a => a.adminWorker)));
+  const adminNames = useTaskContext(useShallow(state => state.adminActivities.map(a => a.name)));
   const handleAddTaskAdmin = useTaskContext(state => state.handleAddTaskAdmin);
   const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
   const handlePopulateAdmin = useTaskContext(state => state.handlePopulateAdmin);
   const handleDeleteTask = useTaskContext(state => state.handleDeleteTask);
   const handleManageUpdateTask = useTaskContext(state => state.handleManageUpdateTask);
   const segmentedControl = useTaskContext(state => state.segmentedControl);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+
+
+  const handleSearch = useDebouncedCallback((val) => {
+    if (!val.trim()) {
+      setLoadingAdmin(false);
+      return;
+    }
+
+    setLoadingAdmin(true);
+
+    // Small delay so the loader is visible before scroll snaps
+    setTimeout(() => {
+      const searchLower = val.toLowerCase();
+      const matchIndex = adminNames.findIndex(a =>
+        a?.toLowerCase().includes(searchLower)
+      );
+
+      if (matchIndex !== -1) {
+        rowVirtualizer.scrollToIndex(matchIndex, { align: 'start', behavior: 'instant' });
+      }
+
+      setLoadingAdmin(false);
+    }, 300);
+  }, 500);
 
   useEffect(() => {
     if (isSuccess) {
@@ -139,19 +174,21 @@ const TaskList = () => {
         </Stack>
         <Group flex={1} justify='flex-end'>
           <TextInput
+            rightSection={loadingAdmin ? <Loader size={14} /> : null}
             w={{ md: '35%', base: '100%' }}
             label="Search Admin"
             placeholder='Enter name of the admin'
-          />
+            onChange={(e) => handleSearch(e.currentTarget.value)} />
         </Group>
       </Group>
       <Divider mt={10} mb={5} />
 
-      <div ref={parentRef} style={{ height: '65vh', overflow: 'auto' }}>
+      <div ref={parentRef} style={{ height: 'calc(100vh - 440px)', overflow: 'auto' }}>
         <Table.ScrollContainer minWidth={800}>
           <Table
             withRowBorders
             withTableBorder
+
           >
             <Table.Thead >
               <Table.Tr >

@@ -29,36 +29,33 @@ const TaskProvider = ({ children }) => {
     storeRef.current = createStore((set, get) => ({
       database: null,
       isDbReady: false,
+      rawAdmins: [], // raw results
       adminActivities: [],
       segmentedControl: "ADD",
-      selectedDate: undefined,
+      selectedDate: null,
 
-      initDB: async () => {
-        try {
-          const _db = await DatabaseService.init();
-          set({ database: new DatabaseService(_db), isDbReady: true });
-        } catch (err) {
-          console.error(err);
-        }
+      handleSelectDate: (val) => {
+        set({ selectedDate: val, adminActivities: [] })
       },
-
-      handleSelectDate: (val) => set({ selectedDate: val }),
       handleChangeSegmentedControl: (val) => set({ segmentedControl: val }),
 
       handlePopulateAdmin: (val) => {
-        set((state) => ({
-          adminActivities: val.map((admin) => {
-            return {
-              code: admin.code,
-              adminWorker: admin.adminWorker,
-              name: admin.name,
-              system: admin.system,
-              phaseCode: admin.phaseCode,
-              group: admin.group,
-              control: "ADD",
-              tasks: admin.tasks,
-            }
-          })
+        const _admins = val.map((admin) => {
+          return {
+            code: admin.code,
+            adminWorker: admin.adminWorker,
+            name: admin.name,
+            system: admin.system,
+            phaseCode: admin.phaseCode,
+            group: admin.group,
+            control: "ADD",
+            tasks: admin.tasks,
+          }
+        })
+
+        set(() => ({
+          adminActivities: _admins,
+          rawAdmins: _admins
         }));
       },
 
@@ -78,7 +75,7 @@ const TaskProvider = ({ children }) => {
           tasks: [],
         };
 
-        set({ adminActivities: [...adminActivities, newAdmin] });
+        set({ adminActivities: [...adminActivities, newAdmin], rawAdmins: [...adminActivities, newAdmin] });
       },
 
       handleUpdateTaskAdmin: (workerId, taskIndex, key, column) => {
@@ -140,46 +137,43 @@ const TaskProvider = ({ children }) => {
       },
 
       handleDeleteTask: (workerId, taskIndex, rn) => {
-        const removeTaskFromState = () => {
+        const removeTaskFromState = (predicate) => {
           set((state) => ({
-            adminActivities: state.adminActivities.map((admin) => {
-              if (admin.adminWorker !== workerId) {
-                return admin;
-              }
-              return {
-                ...admin,
-                tasks: admin.tasks.filter((_, index) => index !== taskIndex)
-              };
-            })
+            adminActivities: state.adminActivities.map((admin) =>
+              admin.adminWorker !== workerId
+                ? admin
+                : { ...admin, tasks: admin.tasks.filter(predicate) }
+            ),
           }));
         };
 
-        if (!rn) {
-          removeTaskFromState();
+        // No rn means task is local/unsaved — remove by index only
+        if (rn === null) {
+          removeTaskFromState((_, index) => index !== taskIndex);
           return;
         }
 
         const params = {
           username: user?.username,
-          rn: rn,
-        }
+          rn,
+        };
 
         deleteTaskMutate.mutate(params, {
           onSuccess: () => {
             notifications.show({
-              color: 'green',
-              title: 'Task Deleted',
-              message: 'Task has been deleted successfully',
+              color: "green",
+              title: "Task Deleted",
+              message: "Task has been deleted successfully",
             });
-            removeTaskFromState();
+            removeTaskFromState((item) => item.rn !== rn);
           },
           onError: () => {
             notifications.show({
-              color: 'red',
-              title: 'Task Deletion Failed',
-              message: 'Task has not been deleted successfully',
-            })
-          }
+              color: "red",
+              title: "Task Deletion Failed",
+              message: "Task has not been deleted successfully",
+            });
+          },
         });
       },
 
@@ -199,10 +193,6 @@ const TaskProvider = ({ children }) => {
       }
     }));
   }
-
-  useEffect(() => {
-    storeRef.current.getState().initDB();
-  }, []);
 
   return (
     <TaskContext.Provider value={storeRef.current}>

@@ -11,12 +11,12 @@ const useAuth = create(
         set({ token: null, user: null });
       },
       onSetUserDetails: (data, token = null) => {
-        const agent = parseUserAgent(window.navigator.userAgent);
+        // const agent = parseUserAgent(window.navigator.userAgent);
         set({
           token: token,
           user: {
             ...data,
-            agent: agent,
+            username: data?.username
           },
         })
       },

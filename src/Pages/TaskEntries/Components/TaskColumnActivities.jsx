@@ -11,10 +11,35 @@ const TaskActivityStatus = ({ status }) => {
 }
 
 const TaskColumnActivitiesOptions = memo(({ item }) => {
+
+  const prerequisites = useMemo(() => {
+    return item.pre_requisite_tasks
+      .filter(task => task.pre_requisite_code !== "")
+      .map(task => (
+        <Badge
+          key={task.pre_requisite_code}
+          style={{ border: '0.5px solid gray' }}
+          variant={task.pre_status === "COMPLETED" ? "filled" : "default"}
+        >
+          {task.pre_requisite_code}
+        </Badge>
+      ));
+  }, [item.pre_requisite_tasks]);
+
+  const hasIncompletePrereq = useMemo(() => {
+    return item.pre_requisite_tasks.some(
+      task =>
+        task.pre_requisite_code !== "" &&
+        task.pre_status !== "COMPLETED"
+    );
+  }, [item.pre_requisite_tasks]);
+
   return (
-    <Combobox.Option disabled={item.status === "COMPLETED"} value={item}>
+    <Combobox.Option disabled={item.status === "COMPLETED" || hasIncompletePrereq} value={item}>
       <Group>
-        <Badge style={{ border: '1px solid var(--mantine-color-dimmed)' }} size="md" h={50} radius="xs" variant="light">PAD</Badge>
+        {item?.title && (
+          <Badge style={{ border: '1px solid var(--mantine-color-dimmed)' }} size="md" h={50} radius="xs" variant="light">{item.title}</Badge>
+        )}
         <Stack gap={0} flex={1}>
           <Group justify="space-between">
             <Text size="xs" style={{ fontFamily: 'monospace' }}>{item.code}</Text>
@@ -29,10 +54,7 @@ const TaskColumnActivitiesOptions = memo(({ item }) => {
           </Group>
           <Tooltip label="Prerequisite Tasks">
             <Group wrap="wrap" gap={2}>
-              {item.pre_requisite_tasks.map((task) => {
-                if (task.pre_requisite_code == "") return null;
-                return <Badge>{task.pre_requisite_code}</Badge>
-              })}
+              {prerequisites}
             </Group>
           </Tooltip>
         </Stack>
@@ -57,7 +79,7 @@ const TaskColumnActivities = memo(({
 
   useEffect(() => {
     if (term) return;
-    if(!params?.block && !params?.lot_no) return;
+    if (!params?.block && !params?.lot_no) return;
     refetch();
   }, [refetch, params]);
 

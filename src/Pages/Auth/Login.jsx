@@ -57,7 +57,7 @@ const Login = () => {
     setIsLoading(true);
     loginMutation.mutate(form.getValues(), {
       onSuccess: (response) => {
-        console.log(response.data);
+        console.log(response.data.data);
         setIsLoading(false);
         
         onSetUserDetails(response.data.data, null)
@@ -84,7 +84,7 @@ const Login = () => {
   }
 
   return (
-    <Container h={'100vh'} >
+    <Container bg="white" h={'100vh'} fluid >
       <Flex direction={"column"} h={"100%"} align="center" justify="center">
         {/* <Image src={Logo} h={120} w="auto" /> */}
 

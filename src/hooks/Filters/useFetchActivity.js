@@ -8,7 +8,7 @@ const useFetchActivity = ({
   return useQuery({
     queryKey: [QueryKeys.FILTER_ACTIVITIES, params],
     queryFn: async () => {
-      const response = await client.post(`/TaskAssignment/NewTaskAssignment/${params.username}/tasks/${params.constructionIndex}`, params);
+      const response = await client.post(`/TaskAssignment/NewTaskAssignment/${params.username}/tasks/dar/${params.constructionIndex}`, params);
       return response.data;
     },
     enabled: false,

@@ -7,11 +7,9 @@ import useAuth from "~/hooks/Auth/useAuth";
 import { DatePickerInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { useTaskContext } from "../context";
-import { useEffect } from "react";
 
 const TaskFieldForms = () => {
   const segmentedControl = useTaskContext(state => state.segmentedControl);
-  const handleChangeSegmentedControl = useTaskContext(state => state.handleChangeSegmentedControl);
   const handleSelectDate = useTaskContext(state => state.handleSelectDate);
   const { state } = useLocation();
   const { user } = useAuth();
@@ -67,33 +65,10 @@ const TaskFieldForms = () => {
           </Box>
 
           <Group align="flex-end">
-            <SegmentedControl
-              value={segmentedControl}
-              onChange={handleChangeSegmentedControl}
-              data={[
-                {
-                  value: 'ADD',
-                  label: (
-                    <Center style={{ gap: 10, }}>
-                      <Pen size={16} />
-                      <span>ADD</span>
-                    </Center>
-                  )
-                },
-                {
-                  value: "DELETE",
-                  label: (
-                    <Center style={{ gap: 10, }}>
-                      <Trash size={16} />
-                      <span>DELETE</span>
-                    </Center>
-                  )
-                }
-              ]} />
             <DatePickerInput
               placeholder="Select a date"
               label="DATE"
-              onChange={(v) => handleSelectDate(v)}
+              onChange={handleSelectDate}
               w={{
                 md: 300,
                 base: '100%'

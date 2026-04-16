@@ -128,6 +128,7 @@ const DashboardLayout = () => {
   const scrollPositions = useRef({});
   const location = useLocation();
   const { user } = useAuth();
+  const username = user?.username;
   const { ref, height } = useElementSize();
   const [isDark, setIsDark] = useState(
     () => (localStorage.getItem('color-scheme') || 'dark') === 'dark'
@@ -165,8 +166,8 @@ const DashboardLayout = () => {
 
   const handleLogout = () => onSetClearToken();
 
-  const initials = user?.user?.name
-    ? user.user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const initials = user?.name 
+    ? user?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'AD';
 
   return (
@@ -258,9 +259,9 @@ const DashboardLayout = () => {
                 <div className="user-card">
                   <Text c="#f8f9fa" fw={800} className="user-avatar">{initials}</Text>
                   <div>
-                    <Text size="xs">{user?.user?.name}</Text>
+                    <Text size="xs">{username}</Text>
                     {/* <div className="user-name">{user?.user?.name || 'Admin'}</div> */}
-                    <div className="user-role">Administrator</div>
+                    <div className="user-role">{user?.role}</div>
                   </div>
                   <ChevronRight size={14} className="user-chevron" />
                 </div>

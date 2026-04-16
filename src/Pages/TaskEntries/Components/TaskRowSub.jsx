@@ -166,10 +166,8 @@ const TaskRowActionButton = memo(({
     );
   }
 
-    console.log(control)
-
   return (
-    <Tooltip label="DELETE">
+    <Tooltip label={`DELETE id: ${rn}`}>
       <ActionIcon onClick={onDelete} variant="light" color="red" loading={loading} size={32}>
         <TrashIcon size={18} />
       </ActionIcon>
@@ -220,7 +218,7 @@ const TaskRowSub = memo(({
   } = state;
 
   useEffect(() => {
-    console.log("RERENDERS: ", workerName);
+    // console.log("RERENDERS: ", workerName);
     if (rowData?.rn) {
       dispatch({ type: "SET_ROW_DATA", payload: rowData });
     } else if (rowData?.category) {
@@ -301,16 +299,17 @@ const TaskRowSub = memo(({
       const _rn = rn || null;
       handleDeleteTask(workerId, row, _rn);
     },
-    [handleDeleteTask, workerId, row]
+    [handleDeleteTask, workerId, row, rn]
   );
 
   // ── Derived State ─────────────────────────────────────────────────────────
 
   const hoursPerActivity = useMemo(
     () => {
+      // if (!timeIn && !timeOut) return 0;
       return computeHoursPerActivity({ timeIn: timeIn, timeOut: timeOut, projectedHours: rowData?.projectedHours })
     },
-    [timeIn, timeOut, rowData]
+    [timeIn, timeOut]
   );
 
   const blockParams = params
@@ -329,15 +328,6 @@ const TaskRowSub = memo(({
       realTimeTrackingOfOverlapHours(timeIn, timeOut, admin.tasks)
     return hasOverlap
   }, [timeIn, timeOut])
-
-
-  // const isOverlapping = useTaskContext((state) => {
-  //   const admin = state.adminActivities.find((a) => a.adminWorker === workerId);
-  //   if (!admin) return false;
-  //   return isTaskOverlapping(admin.tasks ?? [], row);
-  // });
-  //
-  // console.log(isOverlapping);
 
   const activityParams = useMemo(
     () => {
@@ -361,10 +351,22 @@ const TaskRowSub = memo(({
     return activity.budget
   }, [activity?.budget])
 
+  // const accumulatedHours = useMemo(() => {
+  //   if (!activity) return 0 + hoursPerActivity;
+  //   return (activity.accumulated_hours).toFixed(2);
+  // }, [activity?.accumulated_hours]);
+
   const accumulatedHours = useMemo(() => {
     if (!activity) return 0 + hoursPerActivity;
-    return (activity.accumulated_hours + parseFloat(hoursPerActivity)).toFixed(2);
-  }, [activity?.accumulated_hours, hoursPerActivity]);
+    return (activity.accumulated_hours + parseFloat(hoursPerActivity) - (rowData?.accumulatedHours || 0)).toFixed(2);
+  }, [hoursPerActivity, activity?.accumulated_hours]);
+
+
+  // const accumulatedHours = useMemo(() => {
+  //   console.log('computation of accumulated Hours')
+  //   if (!activity) return 0 + hoursPerActivity;
+  //   return (activity.accumulated_hours + parseFloat(hoursPerActivity)).toFixed(2);
+  // }, [activity?.accumulated_hours, hoursPerActivity]);
 
   const isRowOverbudget = useMemo(() => {
     if (!budgetHours) return false;
@@ -373,8 +375,6 @@ const TaskRowSub = memo(({
   }, [budgetHours, accumulatedHours, hoursPerActivity])
 
   const handleManageTaskEntry = useCallback(() => {
-
-
     const request = {
       rn: rn || null,
       system: "NOAH_PAAPDC",
@@ -392,7 +392,8 @@ const TaskRowSub = memo(({
       category: constructionIndex,
       block: block,
       lot: lot,
-      isOt: false // create a state for identifying ot on hold;
+      isOt: false, // create a state for identifying ot on hold;
+      username: params.username,
     }
 
     dispatch({ type: "LOADING", payload: true });
@@ -455,7 +456,7 @@ const TaskRowSub = memo(({
     <Table.Tr style={{ pointerEvents: (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
       < Table.Td >
         <NativeSelect
-          disabled={(rn && (control == "ADD" || control == "DELETE"))}
+          disabled={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
           value={constructionIndex}
           data={CONSTRUCTION_TYPES}
           onChange={handleSelectConstruction}
@@ -464,7 +465,7 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <BlockSelect
-          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
           value={block}
           params={blockParams}
           onChange={handleSelectBlock}
@@ -473,7 +474,7 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <TaskColumnLotComboBox
-          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
           lot={lot}
           params={lotParams}
           onChange={handleSelectLot}
@@ -483,7 +484,7 @@ const TaskRowSub = memo(({
       <Table.Td>
         <Stack gap={10}>
           <TaskColumnActivities
-            readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+            readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
             term={actTerm}
             onChange={handleSelectActivity}
             params={activityParams}
@@ -492,7 +493,7 @@ const TaskRowSub = memo(({
           {/* {(constructionIndex !== 'other-task') && (isRowOverbudget) &&  ( */}
           {(rowData?.justification) || (constructionIndex !== 'other-task') && (isRowOverbudget) && (
             <TextInput
-              readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+              readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
               defaultValue={justification}
               required
               placeholder='Enter Justification'
@@ -531,13 +532,13 @@ const TaskRowSub = memo(({
 
       <Table.Td>
         <DateTimeIn
-          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
           timeIn={rowData?.dateTimeIn || timeIn} onChange={handleTimeIn} />
       </Table.Td>
 
       <Table.Td>
         <DateTimeOut
-          readOnly={(rn && (control == "ADD" || control == "DELETE"))}
+          readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
           timeOut={rowData?.dateTimeOut || timeOut} onChange={handleTimeOut} />
       </Table.Td>
 

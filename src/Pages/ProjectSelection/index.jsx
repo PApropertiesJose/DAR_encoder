@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import {
   Container,
   Stack,
@@ -20,6 +20,7 @@ import useAuth from '~/hooks/Auth/useAuth';
 import StringRoutes from '~/Constants/StringRoutes';
 
 const ProjectList = memo(({ params, searchQuery }) => {
+  console.log('show params: ', params);
   const { data, isLoading, isError, error, isSuccess } = useFetchProject(params);
   const navigate = useNavigate();
 
@@ -71,6 +72,7 @@ const ProjectList = memo(({ params, searchQuery }) => {
         phase: item,
       }
     });
+
   }
 
   return (
@@ -107,6 +109,7 @@ const ProjectSelection = () => {
 
   const [debounce] = useDebouncedValue(searchQuery, 500);
 
+
   return (
     <Container fluid p={0} m={0}>
       <Stack gap={0} pb={10} m={0}>
@@ -127,7 +130,7 @@ const ProjectSelection = () => {
       </Box>
 
       {/* 4. Pass the query down to the list */}
-      <ProjectList params={"jmdelacruz"} searchQuery={debounce} />
+      <ProjectList params={username} searchQuery={debounce} />
     </Container>
   );
 };
