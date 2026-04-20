@@ -58,7 +58,7 @@ const AutoCompleteAdmins = memo(({
   }, [data, isSuccess]);
 
   const filteredResults = useMemo(() => {
-    return results.filter((item) =>
+    return results?.filter((item) =>
       item.name.toLowerCase().includes(search.toLowerCase())
     );
   }, [results, search]);
@@ -83,16 +83,7 @@ const AutoCompleteAdmins = memo(({
         w={"100%"}
         store={combobox}
         onOptionSubmit={(val) => {
-          // if (!selectedDate) {
-          //   notifications.show({
-          //     color: 'red',
-          //     title: "Failed to Add admin!",
-          //     message: "Please select a date first"
-          //   })
-          //   return;
-          // }
           handleAddAdmin(val);
-          // combobox.closeDropdown();
         }}
       >
         <Combobox.Target>

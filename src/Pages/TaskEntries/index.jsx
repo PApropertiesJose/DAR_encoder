@@ -5,21 +5,23 @@ import {
   Anchor,
   Stack,
   Divider,
-  Group,
+  Group
 } from "@mantine/core";
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import StringRoutes from "~/Constants/StringRoutes";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ClockIcon, Bell } from "lucide-react";
 import TaskFieldForms from "./Components/TaskFieldForms";
 import TaskList from "./Components/TaskList";
 import TaskProvider, { useTaskContext } from "./context";
 import { useEffect, useMemo } from "react";
 import useAuth from "~/hooks/Auth/useAuth";
+import PunchlistModal from "./Components/PunchlistModal";
 
 
 const TaskEntriesContainer = () => {
   const { phaseCode } = useParams();
   const selectedDate = useTaskContext(state => state.selectedDate);
+  
   const auth = useAuth();
   const items = [
     { title: "Phase", href: StringRoutes.project_selection },
@@ -43,7 +45,7 @@ const TaskEntriesContainer = () => {
       username: auth?.user?.username,
       system: "NOAH_PAAPDC",
       phaseCode: phaseCode,
-      schedDate: selectedDate 
+      schedDate: selectedDate
     }
   }, [selectedDate]);
 
@@ -59,7 +61,10 @@ const TaskEntriesContainer = () => {
       </Stack>
       <Divider />
       <TaskFieldForms />
-      <TaskList params={filterParams}/>
+      <TaskList params={filterParams} />
+
+      <PunchlistModal />
+      
     </Container>
   )
 }

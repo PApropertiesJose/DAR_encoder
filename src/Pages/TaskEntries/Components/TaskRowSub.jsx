@@ -168,7 +168,7 @@ const TaskRowActionButton = memo(({
 
   return (
     <Tooltip label={`DELETE id: ${rn}`}>
-      <ActionIcon onClick={onDelete} variant="light" color="red" loading={loading} size={32}>
+      <ActionIcon disabled={control === "END"} onClick={onDelete} variant="light" color="red" loading={loading} size={32}>
         <TrashIcon size={18} />
       </ActionIcon>
     </Tooltip>
@@ -211,6 +211,7 @@ const TaskRowSub = memo(({
   rowData,
 }) => {
   const admins = useTaskContext(state => state.adminActivities);
+  const handlePunchListOpenModal = useTaskContext(state => state.handlePunchListOpenModal);
   const [state, dispatch] = useReducer(reducer, rowData);
   const {
     rn, constructionIndex, block, lot, lotObject,
@@ -218,7 +219,7 @@ const TaskRowSub = memo(({
   } = state;
 
   useEffect(() => {
-    // console.log("RERENDERS: ", workerName);
+    console.log("RERENDERS: ", workerName);
     if (rowData?.rn) {
       dispatch({ type: "SET_ROW_DATA", payload: rowData });
     } else if (rowData?.category) {
@@ -351,22 +352,11 @@ const TaskRowSub = memo(({
     return activity.budget
   }, [activity?.budget])
 
-  // const accumulatedHours = useMemo(() => {
-  //   if (!activity) return 0 + hoursPerActivity;
-  //   return (activity.accumulated_hours).toFixed(2);
-  // }, [activity?.accumulated_hours]);
 
   const accumulatedHours = useMemo(() => {
     if (!activity) return 0 + hoursPerActivity;
     return (activity.accumulated_hours + parseFloat(hoursPerActivity) - (rowData?.accumulatedHours || 0)).toFixed(2);
   }, [hoursPerActivity, activity?.accumulated_hours]);
-
-
-  // const accumulatedHours = useMemo(() => {
-  //   console.log('computation of accumulated Hours')
-  //   if (!activity) return 0 + hoursPerActivity;
-  //   return (activity.accumulated_hours + parseFloat(hoursPerActivity)).toFixed(2);
-  // }, [activity?.accumulated_hours, hoursPerActivity]);
 
   const isRowOverbudget = useMemo(() => {
     if (!budgetHours) return false;
@@ -394,8 +384,16 @@ const TaskRowSub = memo(({
       lot: lot,
       isOt: false, // create a state for identifying ot on hold;
       username: params.username,
+      row: row,
+      accumulatedHours: activity?.accumulated_hours,
     }
 
+    if (activity?.description === "Punchlist works") {
+      handlePunchListManageModal(request);
+      return;
+    }
+
+    // common erntry process 
     dispatch({ type: "LOADING", payload: true });
     taskMutation.mutate(request, {
       onSuccess: (response) => {
@@ -446,6 +444,14 @@ const TaskRowSub = memo(({
     lot,
     taskMutation
   ])
+
+  const handlePunchListManageModal = (request) => {
+    const data = {
+      ...request,
+      "activityParams": activityParams
+    }
+    handlePunchListOpenModal(data);
+  }
 
   const handleManageUpdateTaskEntry = useCallback(() => {
     handleManageUpdateTask(workerId, rn, { ...state, justification });

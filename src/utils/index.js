@@ -140,11 +140,14 @@ export const realTimeTrackingOfOverlapHours = (timeIn, timeOut, allTasks) => {
   const startA = moment(timeIn);
   const endA = moment(timeOut);
 
+  console.log(allTasks);
+
   return allTasks.some((task) => {
     if (!task.dateTimeIn || !task.dateTimeOut) return false;
 
     const startB = moment(task.dateTimeIn);
     const endB = moment(task.dateTimeOut);
+
 
     console.table({
       startA: startA.format(),

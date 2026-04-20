@@ -33,11 +33,37 @@ const TaskProvider = ({ children }) => {
       adminActivities: [],
       segmentedControl: "ADD",
       selectedDate: null,
+      punchlistModalOpen: false,
+      punchlistData: null,
+
+      handlePunchListOpenModal: (obj) => set(() => ({ punchlistModalOpen: true, punchlistData: obj })),
+      handlePunchListCloseModal: () => set(() => ({ punchlistModalOpen: false, punchlistData: null })),
 
       handleSelectDate: (val) => {
         set({ selectedDate: val, adminActivities: [] })
       },
       handleChangeSegmentedControl: (val) => set({ segmentedControl: val }),
+
+      handleEndShiftAdmin: (admin) => {
+        set((state) => {
+          // 1. Map through the activities to update the specific worker
+          const updatedActivities = state.adminActivities.map((item) => {
+            if (item.adminWorker === admin) {
+              // Return a new object with the updated status
+              return {
+                ...item,
+                shiftStatus: "ENDED",
+              };
+            }
+            // Return the item unchanged if it's not the one we're looking for
+            return item;
+          });
+
+          return {
+            adminActivities: updatedActivities
+          };
+        });
+      },
 
       handlePopulateAdmin: (val) => {
         const _admins = val.map((admin) => {
@@ -49,6 +75,7 @@ const TaskProvider = ({ children }) => {
             phaseCode: admin.phaseCode,
             group: admin.group,
             control: "ADD",
+            shiftStatus: admin.shiftStatus,
             tasks: admin.tasks,
           }
         })

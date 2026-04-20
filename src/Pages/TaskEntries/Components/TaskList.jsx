@@ -1,6 +1,6 @@
 import { Tooltip, Paper, ThemeIcon, SegmentedControl, Group, Stack, Text, TextInput, Divider, Table, ActionIcon, Loader } from '@mantine/core'
 import { Clock, Pickaxe, Plus, WatchIcon } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useVirtualizer } from '@tanstack/react-virtual';
 import TaskRowSub from './TaskRowSub';
@@ -9,12 +9,15 @@ import useAuth from '~/hooks/Auth/useAuth';
 import { useTaskContext } from '../context';
 import useFetchTaskEntries from '~/hooks/TaskEntries/useFetchTaskEntries';
 import TableSkeleton from '~/components/Loading/TableSkeleton';
-import { useDebouncedValue, useDebouncedCallback } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import useManageTaskUpdateMutation from '~/hooks/TaskEntries/useManamgeTaskUpdateMutation';
 
 const TaskRowHeader = memo(({
   workerId,
   params,
   onAdd,
+  handleEndShiftAdmin,
   handleUpdateTaskAdmin,
   handleDeleteTask,
   handleManageUpdateTask,
@@ -22,11 +25,13 @@ const TaskRowHeader = memo(({
   measureRef,
   index
 }) => {
-  const [segmentedControl, setSegmentedControl] = useState('ADD');
+  const endMutation = useManageTaskUpdateMutation();
+  const [isLoading, setIsLoading] = useState(false);
   const adminInfo = useTaskContext(useShallow(state => {
     const admin = state.adminActivities.find(a => a.adminWorker === workerId) || {};
-    return { name: admin.name, group: admin.group, system: admin.system, taskCount: admin.tasks?.length || 0, tasks: admin?.tasks || [] };
+    return { name: admin.name, group: admin.group, system: admin.system, shiftStatus: admin.shiftStatus, taskCount: admin.tasks?.length || 0, tasks: admin?.tasks || [] };
   }));
+  const [segmentedControl, setSegmentedControl] = useState(adminInfo.shiftStatus === "ENDED" ? "END" : "ADD");
 
   const handleClick = () => {
     onAdd({ adminWorker: workerId });
@@ -48,12 +53,73 @@ const TaskRowHeader = memo(({
     />
   ));
 
+  const handleEndAdminShift = () => {
+    const rns = adminInfo.tasks.map((item) => item.rn.toString());
+
+    const hadEmpty = rns.some(item => item === "");
+    if (hadEmpty) {
+      notifications.show({
+        color: 'orange',
+        title: "Failed to end the shift of the admin.",
+        message: "Some tasks are not yet saved."
+      })
+      return;
+    }
+
+    const _params = { rns: rns, username: params.username }
+
+    setIsLoading(true);
+    endMutation.mutate(_params, {
+      onSuccess: (response) => {
+        notifications.show({
+          color: "green",
+          title: "End Admin Shift",
+          message: "Successfully end the admin shift",
+        });
+
+        setIsLoading(false);
+        handleEndShiftAdmin(workerId);
+      },
+      onError: (error) => {
+        const errorMessage = error.response?.data?.errorMessage ?? error.message;
+        notifications.show({
+          color: 'red',
+          title: "Something went wrong!",
+          message: errorMessage
+        });
+        setIsLoading(false);
+      }
+
+    });
+
+  }
+
+  const controlDisabledDue = useMemo(() => {
+    return adminInfo?.shiftStatus === "ENDED"
+  }, [adminInfo]);
+
   return (
     <Table.Tbody ref={measureRef} data-index={index}>
       <Table.Tr >
         <Table.Td style={{ fontSize: '13px' }}>{adminInfo.name}</Table.Td>
         <Table.Td colSpan={3}>
-          <SegmentedControl variant="outlined" color="primary" onChange={setSegmentedControl} fullWidth data={['ADD', 'DELETE', 'END']} />
+          <SegmentedControl variant="outlined" color="primary" onChange={setSegmentedControl} value={segmentedControl} fullWidth data={[
+            {
+              value: "ADD",
+              label: "ADD",
+              disabled: controlDisabledDue,
+            },
+            {
+              value: "DELETE",
+              label: "DELETE",
+              disabled: controlDisabledDue,
+            },
+            {
+              value: "END",
+              label: "END",
+              disabled: controlDisabledDue
+            }
+          ]} />
         </Table.Td>
         {/* <Table.Td></Table.Td> */}
         {/* <Table.Td></Table.Td> */}
@@ -71,8 +137,8 @@ const TaskRowHeader = memo(({
             </ThemeIcon>
           ) : (
             <ThemeIcon c="red">
-              <Tooltip label="END SHIFT">
-                <ActionIcon variant="filled" size="32" radius="md">
+              <Tooltip label={controlDisabledDue ? "SHIFT ALREADY ENDED" : "END SHIFT"}>
+                <ActionIcon disabled={controlDisabledDue} loading={isLoading} onClick={handleEndAdminShift} variant="filled" size="32" radius="md">
                   <Clock size={16} />
                 </ActionIcon>
               </Tooltip>
@@ -99,6 +165,7 @@ const TaskList = ({
   const handlePopulateAdmin = useTaskContext(state => state.handlePopulateAdmin);
   const handleDeleteTask = useTaskContext(state => state.handleDeleteTask);
   const handleManageUpdateTask = useTaskContext(state => state.handleManageUpdateTask);
+  const handleEndShiftAdmin = useTaskContext(state => state.handleEndShiftAdmin);
   const segmentedControl = useTaskContext(state => state.segmentedControl);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
 
@@ -220,6 +287,7 @@ const TaskList = ({
                 handleUpdateTaskAdmin={handleUpdateTaskAdmin}
                 handleDeleteTask={handleDeleteTask}
                 handleManageUpdateTask={handleManageUpdateTask}
+                handleEndShiftAdmin={handleEndShiftAdmin}
                 control={segmentedControl}
                 measureRef={rowVirtualizer.measureElement}
                 index={virtualRow.index}
