@@ -6,6 +6,7 @@ import ProtectedRoutes from './components/Routes'
 import Login from './Pages/Auth/Login' 
 import ProjectSelection from './Pages/ProjectSelection'
 import TaskEntries from './Pages/TaskEntries'
+import AdminPage from './Pages/Admin'
 
 const DASHBOARD_ROUTES = [
   {
@@ -38,7 +39,12 @@ const router = createBrowserRouter([
   {
     path: StringRoutes.login,
     Component: Login,
+  },
+  {
+    path: `${StringRoutes.admin}/:username?`,
+    Component: AdminPage
   }
+
 ],
   {
     future: {

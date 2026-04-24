@@ -5,7 +5,9 @@ enum QueryKeys {
   FILTER_BLOCK,
   FILTER_LOT,
   FILTER_ACTIVITIES,
-  TASK_ENTRIES
+  TASK_ENTRIES,
+
+  BADGE_ADMINS
 }
 
 export default QueryKeys;

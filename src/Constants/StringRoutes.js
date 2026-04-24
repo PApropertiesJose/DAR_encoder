@@ -5,6 +5,8 @@ class StringRoutes {
   //auth
   static login = '/login';
 
+  static admin = '/admin';
+
   static dashboard = '/'; 
 
   static project_selection = '/phase'
