@@ -1,4 +1,4 @@
-import { Flex, Paper, Box, Group, Stack, ThemeIcon, Text, Badge, Divider, ActionIcon, Collapse, SegmentedControl, Center } from "@mantine/core";
+import { Flex, Button, Paper, Box, Group, Stack, ThemeIcon, Text, Badge, Divider, ActionIcon, Collapse, SegmentedControl, Center } from "@mantine/core";
 import { useLocation, useParams } from 'react-router';
 import ErrorElement from "~/components/ErrorElement";
 import { ChevronDown, MapPinned, Pen, PlusIcon, NotebookPen, Trash } from 'lucide-react'
@@ -7,6 +7,9 @@ import useAuth from "~/hooks/Auth/useAuth";
 import { DatePickerInput } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import { useTaskContext } from "../context";
+import { Files } from 'lucide-react'
+import { useCallback } from "react";
+import BatchAssignmentTasks from "./BatchAssignmentTasks";
 
 const TaskFieldForms = () => {
   const segmentedControl = useTaskContext(state => state.segmentedControl);
@@ -14,7 +17,7 @@ const TaskFieldForms = () => {
   const { state } = useLocation();
   const { user } = useAuth();
   const { phaseCode } = useParams();
-  const [opened, { toggle }] = useDisclosure(true);
+  const [opened, { open, close }] = useDisclosure(false);
 
   if (!state || !Object.hasOwn(state, 'phase')) {
     return (
@@ -26,6 +29,10 @@ const TaskFieldForms = () => {
   }
 
   const phase = state.phase;
+
+  const handleBatchAssigning = useCallback(() => {
+    open();
+  }, [])
 
   return (
     <Paper
@@ -44,38 +51,42 @@ const TaskFieldForms = () => {
           </Group>
           <Text size="xs" style={{ fontFamily: 'monospace' }}>{phase.location}</Text>
         </Stack>
-        <Group flex={1} justify="flex-end">
-          <ActionIcon onClick={toggle} variant="transparent" size={23}>
-            <ChevronDown />
-          </ActionIcon>
-        </Group>
+        
       </Group>
       <Divider my={10} />
 
-      <Collapse in={opened}>
-        <Flex direction={{ md: 'row', base: 'column' }} align="flex-start" justify="space-between" >
-          <Box w={{ md: 450, base: '100%' }}>
-            {segmentedControl === "ADD" && (
-              <AutoCompleteAdmins params={{
-                username: user?.username,
-                phaseCode: phaseCode
-              }} />
-            )}
+      <Flex direction={{ md: 'row', base: 'column' }} align="flex-start" justify="space-between" >
+        <Box w={{ md: 450, base: '100%' }}>
+          {segmentedControl === "ADD" && (
+            <AutoCompleteAdmins params={{
+              username: user?.username,
+              phaseCode: phaseCode
+            }} />
+          )}
+        </Box>
 
-          </Box>
+        <Group align="flex-end">
+          <Button 
+            onClick={handleBatchAssigning}
+            leftSection={<Files size={16} />}
+            variant="filled" tt="uppercase">
+            Batch Assigning
+          </Button>
+          <DatePickerInput
+            placeholder="Select a date"
+            label="DATE"
+            onChange={handleSelectDate}
+            w={{
+              md: 300,
+              base: '100%'
+            }} />
+        </Group>
+      </Flex>
 
-          <Group align="flex-end">
-            <DatePickerInput
-              placeholder="Select a date"
-              label="DATE"
-              onChange={handleSelectDate}
-              w={{
-                md: 300,
-                base: '100%'
-              }} />
-          </Group>
-        </Flex>
-      </Collapse>
+      <BatchAssignmentTasks 
+        opened={opened}
+        close={close}
+      />
     </Paper>
   );
 }

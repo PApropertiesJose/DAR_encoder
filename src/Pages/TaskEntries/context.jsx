@@ -65,6 +65,28 @@ const TaskProvider = ({ children }) => {
         });
       },
 
+      handleInsertBatchActivities: (updates) => {
+        set((state) => ({
+          adminActivities: state.adminActivities.map((admin) => {
+            // Find the update corresponding to this adminWorker
+            const update = updates.find((u) => u.adminWorker === admin.adminWorker);
+
+            // If found, return a new object with the new task pushed into the tasks array
+            if (update) {
+              return {
+                ...admin,
+                tasks: [...admin.tasks, update.tasks],
+              };
+            }
+
+            // Otherwise, return the admin unchanged
+            return admin;
+          }),
+        }));
+
+        console.log(get().adminActivities);
+      },
+
       handlePopulateAdmin: (val) => {
         const _admins = val.map((admin) => {
           return {
@@ -79,6 +101,8 @@ const TaskProvider = ({ children }) => {
             tasks: admin.tasks,
           }
         })
+
+        console.log(_admins);
 
         set(() => ({
           adminActivities: _admins,

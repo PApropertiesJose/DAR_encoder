@@ -219,17 +219,6 @@ const DashboardLayout = () => {
                 {isDark ? <Sun size={15} /> : <Moon size={15} />}
               </div>
             </Tooltip>
-            <Tooltip label="Notifications" position="bottom">
-              <div className="header-action-btn" style={{ position: 'relative' }}>
-                <Bell size={15} />
-                <NotificationDot />
-              </div>
-            </Tooltip>
-            <Tooltip label="Settings" position="bottom">
-              <div className="header-action-btn">
-                <Settings size={15} />
-              </div>
-            </Tooltip>
           </Group>
         </Group>
       </AppShell.Header>

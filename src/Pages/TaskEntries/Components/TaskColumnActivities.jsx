@@ -1,4 +1,4 @@
-import { Badge, Tooltip, Combobox, InputBase, useCombobox, Input, Text, Loader, Group, Stack, Paper } from "@mantine/core";
+import { Badge, Box, Tooltip, Combobox, InputBase, useCombobox, Input, Text, Loader, Group, Stack, Paper } from "@mantine/core";
 import { memo, useEffect, useMemo, useState } from 'react'
 import useFetchActivity from "~/hooks/Filters/useFetchActivity";
 import { formatNumber } from "~/utils";
@@ -66,6 +66,7 @@ const TaskColumnActivitiesOptions = memo(({ item }) => {
 
 
 const TaskColumnActivities = memo(({
+  label = null,
   params,
   term,
   onChange,
@@ -76,6 +77,7 @@ const TaskColumnActivities = memo(({
   });
 
   const { data, isLoading, isError, error, isSuccess, refetch } = useFetchActivity({ params: params });
+  const [activityCode, setActivityCode] = useState(null);
 
   useEffect(() => {
     if (term) return;
@@ -112,9 +114,11 @@ const TaskColumnActivities = memo(({
   return (
     <Combobox
       w="100%"
+      label={label}
       store={combobox}
       disabled={readOnly}
       onOptionSubmit={(val) => {
+        setActivityCode(val.code)
         onChange(val);
         combobox.closeDropdown();
       }}
@@ -123,11 +127,18 @@ const TaskColumnActivities = memo(({
         <InputBase
           disabled={readOnly}
           pointer
+          label={activityCode}
           rightSection={isLoading ? <Loader size={16} /> : <Combobox.Chevron />}
           rightSectionPointerEvents="none"
+          onBlur={() => {
+            combobox.closeDropdown();
+          }}
+          onFocus={() => {
+            combobox.openDropdown()
+          }}
           onClick={() => {
             combobox.focusSearchInput();
-            combobox.toggleDropdown();
+            combobox.openDropdown();
           }}
           value={search}
           placeholder='CONSTRUCTION ACTIVITY'

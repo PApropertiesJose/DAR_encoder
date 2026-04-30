@@ -128,13 +128,11 @@ const TaskRowHeader = memo(({
         <Table.Td style={{ fontFamily: 'monospace' }}>{adminInfo.tasks[adminInfo.tasks.length - 1]?.dateTimeOut}</Table.Td>
         <Table.Td>
           {segmentedControl !== "END" ? (
-            <ThemeIcon>
-              <Tooltip label="Add Activity">
-                <ActionIcon disabled={(segmentedControl == "DELETE")} onClick={handleClick} variant="light" size={32} radius="md" c="white">
-                  <Plus size={16} />
-                </ActionIcon>
-              </Tooltip>
-            </ThemeIcon>
+            <Tooltip label="Add Activity">
+              <ActionIcon disabled={(segmentedControl == "DELETE")} onClick={handleClick} variant="filled" size={32} radius="md" c="white">
+                <Plus size={16} />
+              </ActionIcon>
+            </Tooltip>
           ) : (
             <ThemeIcon c="red">
               <Tooltip label={controlDisabledDue ? "SHIFT ALREADY ENDED" : "END SHIFT"}>

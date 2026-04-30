@@ -12,6 +12,7 @@ const useFetchActivity = ({
       return response.data;
     },
     enabled: false,
+    // staleTime: 0
   });
 
 }

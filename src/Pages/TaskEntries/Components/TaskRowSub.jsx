@@ -1,12 +1,10 @@
 import {
-  Group, Badge, Select, Stack, NativeSelect, Tooltip, Table,
-  ActionIcon, Loader, Text, ThemeIcon,
+  Group, Select, Stack, NativeSelect, Tooltip, Table,
+  ActionIcon, Loader, Text,
   TextInput,
-  ModalContent
 } from '@mantine/core';
-import { CheckIcon, ChevronDown, Pen, TrashIcon } from 'lucide-react';
-import { useParams } from 'react-router';
-import { memo, useCallback, useMemo, useReducer, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { CheckIcon, ChevronDown, TrashIcon } from 'lucide-react';
+import { memo, useCallback, useMemo, useReducer, useEffect } from 'react';
 import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
 import TaskColumnActivities from './TaskColumnActivities';
 import DateTimeIn from './DateTimeIn';
@@ -17,6 +15,8 @@ import { useDebouncedState } from '@mantine/hooks';
 import useManageTaskEntryMutation from '~/hooks/TaskEntries/useManageTaskEntryMutation';
 import { notifications } from '@mantine/notifications';
 import { useTaskContext } from '../context';
+import { useQueryClient } from '@tanstack/react-query';
+import QueryKeys from '~/Constants/QueryKeys';
 
 
 //TODO: FIX THE UPDATE OF EACH FIELD reset & disabled the save button if it has existing RN which mean it isaved  in the database
@@ -175,7 +175,7 @@ const TaskRowActionButton = memo(({
   );
 });
 
-const BlockSelect = memo(({ value, params, onChange, readOnly = false }) => {
+export const BlockSelect = memo(({ label = null, size = null, variant = "default", value, params, onChange, readOnly = false }) => {
   const { data, isLoading, isSuccess } = useFetchBlock({ params });
 
   const blocks = useMemo(
@@ -185,6 +185,8 @@ const BlockSelect = memo(({ value, params, onChange, readOnly = false }) => {
 
   return (
     <Select
+      variant={variant}
+      label={label}
       readOnly={readOnly}
       value={value}
       placeholder="BLOCK"
@@ -210,6 +212,7 @@ const TaskRowSub = memo(({
   handleManageUpdateTask,
   rowData,
 }) => {
+  const queryClient = useQueryClient();
   const admins = useTaskContext(state => state.adminActivities);
   const handlePunchListOpenModal = useTaskContext(state => state.handlePunchListOpenModal);
   const [state, dispatch] = useReducer(reducer, rowData);
@@ -366,7 +369,7 @@ const TaskRowSub = memo(({
 
   const handleManageTaskEntry = useCallback(() => {
     const request = {
-      rn: rn || null,
+      rn: rn === 'batch' ? null : rn,
       system: "NOAH_PAAPDC",
       phaseCode: params.phaseCode,
       modelCode: lotObject?.model,
@@ -376,9 +379,9 @@ const TaskRowSub = memo(({
       position: "",
       code: activity?.code,
       description: activity?.description,
-      projected_time_out: timeOut,
+      projected_time_out: rowData?.rn === 'batch' ? rowData.dateTimeOut : timeOut,
       justification: justification,
-      timeIn: timeIn,
+      timeIn: rowData?.rn === 'batch' ? rowData.dateTimeIn : timeIn,
       category: constructionIndex,
       block: block,
       lot: lot,
@@ -402,8 +405,8 @@ const TaskRowSub = memo(({
           rn: _rn,
           blk: block,
           category: constructionIndex,
-          dateTimeIn: timeIn,
-          dateTimeOut: timeOut,
+          dateTimeIn: rowData?.rn !== 'batch' ? timeIn : rowData?.dateTimeIn,
+          dateTimeOut: rowData?.rn !== 'batch' ? timeOut : rowData?.dateTimeOut,
           justification: justification,
           lot: lot,
           taskCode: activity?.code,
@@ -423,6 +426,7 @@ const TaskRowSub = memo(({
           color: 'red',
           title: "Failed to saved task entry",
           message: errorMessage,
+          position: 'top-right'
         });
       },
       onSettled: () => {
@@ -442,7 +446,7 @@ const TaskRowSub = memo(({
     constructionIndex,
     block,
     lot,
-    taskMutation
+    taskMutation,
   ])
 
   const handlePunchListManageModal = (request) => {
@@ -457,6 +461,27 @@ const TaskRowSub = memo(({
     handleManageUpdateTask(workerId, rn, { ...state, justification });
   }, [justification])
   // console.log("rerender: ", workerName);
+
+  const getIsActionButtonDisabled = () => {
+    // 1. The "Batch" Exception: If it's a batch, never disable it here
+    if (rn === 'batch') return false;
+
+    const hasMissingFields = !lotObject || !activity || !timeIn || !timeOut || !block || !lot;
+
+    // 2. Budget & Justification logic
+    const isConstructionTask = constructionIndex !== 'other-task';
+    const needsJustification = isRowOverbudget && isConstructionTask && !justification;
+
+    // 3. Logic for NEW entries (ADD)
+    if (control === "ADD") {
+      const isAlreadySaved = !!rowData?.rn; // If it has a Record Number, it's already saved
+      return isAlreadySaved || hasMissingFields || needsJustification || isOverlapping
+    }
+
+    // 4. Logic for UPDATES/OTHER
+    // Disable if it's a construction task but has no budget hours left
+    return isConstructionTask && budgetHours <= 0;
+  }
 
   return (
     <Table.Tr style={{ pointerEvents: (!rn && control == "ADD") && 'auto' }} bg={isOverlapping ? "red.1" : "transparent"} >
@@ -553,11 +578,17 @@ const TaskRowSub = memo(({
           control={control}
           rn={rn}
           loading={btnLoading}
-          isDisabled={
-            control === "ADD"
-              ? rowData?.rn || (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping)
-              : (constructionIndex !== 'other-task' && budgetHours <= 0)
-          }
+          isDisabled={getIsActionButtonDisabled()}
+          // isDisabled={
+          //   control === "ADD" ?
+          //     (rn !== 'batch') && rn 
+          //     : null
+          // }
+          // isDisabled={
+          //   control === "ADD"
+          //     ? ((rowData?.rn) || (!lotObject || !activity || !timeIn || !timeOut || !block || !lot || (isRowOverbudget && constructionIndex !== 'other-task' && !justification) || isOverlapping))
+          //     : (constructionIndex !== 'other-task' && budgetHours <= 0)
+          // }
           onSave={handleManageTaskEntry}
           onUpdate={handleManageUpdateTaskEntry}
           onDelete={handleDeleteTaskActivity}

@@ -15,6 +15,7 @@ const lotIconMapping = (type) => {
 }
 
 const TaskColumnLotComboBox = ({
+  label = null,
   params,
   onChange,
   lot = "",
@@ -71,6 +72,7 @@ const TaskColumnLotComboBox = ({
 
   return (
     <Combobox
+      label={label}
       disabled={readOnly}
       w="100%"
       store={combobox}
@@ -85,9 +87,15 @@ const TaskColumnLotComboBox = ({
           disabled={readOnly}
           rightSection={isLoading ? <Loader size={16} /> : <Combobox.Chevron />}
           rightSectionPointerEvents="none"
+          onBlur={() => {
+            combobox.closeDropdown();
+          }}
+          onFocus={() => {
+            combobox.openDropdown()
+          }}
           onClick={() => {
             combobox.focusSearchInput();
-            combobox.toggleDropdown();
+            combobox.openDropdown();
           }}
           value={search}
           placeholder='LOT'

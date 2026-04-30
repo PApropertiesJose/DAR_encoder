@@ -11,7 +11,7 @@ import {
   Badge,
   Timeline,
   Select,
-  Loader
+  Loader,
 } from '@mantine/core'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { useTaskContext } from '../context';
