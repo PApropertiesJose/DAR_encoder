@@ -12,6 +12,7 @@ import TableSkeleton from '~/components/Loading/TableSkeleton';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import useManageTaskUpdateMutation from '~/hooks/TaskEntries/useManamgeTaskUpdateMutation';
+import TaskRowV2 from './TaskRowV2';
 
 const TaskRowHeader = memo(({
   workerId,
@@ -38,19 +39,25 @@ const TaskRowHeader = memo(({
   }
 
   const taskSubRows = Array.from({ length: adminInfo.taskCount }).map((_, i) => (
-    <TaskRowSub
-      control={segmentedControl}
+    <TaskRowV2
       row={i}
       key={`${workerId}-${i}`}
       workerId={workerId}
-      workerName={adminInfo.name}
-      workerSystem={adminInfo.system}
       params={params}
-      handleUpdateTaskAdmin={handleUpdateTaskAdmin}
-      handleDeleteTask={handleDeleteTask}
-      handleManageUpdateTask={handleManageUpdateTask}
-      rowData={adminInfo.tasks[i]}
     />
+    // <TaskRowSub
+    //   control={segmentedControl}
+    //   row={i}
+    //   key={`${workerId}-${i}`}
+    //   workerId={workerId}
+    //   workerName={adminInfo.name}
+    //   workerSystem={adminInfo.system}
+    //   params={params}
+    //   handleUpdateTaskAdmin={handleUpdateTaskAdmin}
+    //   handleDeleteTask={handleDeleteTask}
+    //   handleManageUpdateTask={handleManageUpdateTask}
+    //   rowData={adminInfo.tasks[i]}
+    // />
   ));
 
   const handleEndAdminShift = () => {

@@ -1,5 +1,5 @@
 import { NativeSelect } from "@mantine/core";
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTaskContext } from "../../context";
 import { shallow } from 'zustand/shallow';
 
@@ -11,28 +11,21 @@ const CONSTRUCTION_TYPES = [
 ];
 
 const ConstructionIndexSelect = memo(({
-  task,
-  row,
-  workerId,
+  row 
 }) => {
-  const handleUpdateTaskAdmin = useTaskContext(state => state.handleUpdateTaskAdmin);
-  // const control = useTaskContext(state => state.segmentedControl, shallow);
-
-  const indexSelected = useMemo(() => {
-    return CONSTRUCTION_TYPES.find(a => a.value === task?.category)?.value;
-  }, [task])
+  const control = useTaskContext(state => state.segmentedControl, shallow)
+  const [selectedIndex, setSelectedIndex] = useState('house-unit');
 
   const handleSelect = useCallback((e) => {
-    handleUpdateTaskAdmin(workerId, row, {
-      'category': e.currentTarget.value,
-      'blk': null
-    });
+    setSelectedIndex(e.currentTarget.value);
   }, []);
+
+  const isDisabled = (control === "ADD" || control === "DELETE");
 
   return (
     <NativeSelect
-      // disabled={isDisabled}
-      value={indexSelected}
+      disabled={isDisabled}
+      value={selectedIndex}
       onChange={handleSelect}
       data={CONSTRUCTION_TYPES}
     />
