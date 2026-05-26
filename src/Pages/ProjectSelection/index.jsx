@@ -33,7 +33,7 @@ const ProjectList = memo(({ params, searchQuery }) => {
 
     const lowerQuery = searchQuery.toLowerCase();
 
-    return results.filter((item) => {
+    return results?.filter((item) => {
       const matchCode = item.code?.toLowerCase().includes(lowerQuery);
       const matchName = item.description?.toLowerCase().includes(lowerQuery);
       const matchLocation = item.location?.toLowerCase().includes(lowerQuery);

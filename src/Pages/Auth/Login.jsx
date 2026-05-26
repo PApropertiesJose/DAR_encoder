@@ -57,9 +57,19 @@ const Login = () => {
     setIsLoading(true);
     loginMutation.mutate(form.getValues(), {
       onSuccess: (response) => {
+        if(!response.data?.status) {
+          setIsLoading(false);
+          notifications.show({
+            color: 'red',
+            title: "Failed Login Attempt",
+            message: response?.data.errorMessage 
+          })
+          return;
+        }
+
         console.log(response.data.data);
         setIsLoading(false);
-        
+
         onSetUserDetails(response.data.data, null)
         notifications.show({
           color: 'green',
@@ -136,7 +146,8 @@ const Login = () => {
 
             <Divider my="md" label={<Text>Don't have an account?</Text>} labelPosition="center" />
 
-            <Button fullWidth leftSection={<PhoneCall />} w={formWidth} variant="outline" mt={20} size="lg" radius="md" >
+            <Button
+              fullWidth leftSection={<PhoneCall />} w={formWidth} variant="outline" mt={20} size="lg" radius="md" >
               Request Access to IT
             </Button>
 

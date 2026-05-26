@@ -57,7 +57,13 @@ const PunchlistModal = memo(() => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = useCallback(() => {
-    const code = punchlistCode.split('-')[0];
+    if(!punchlistCode) {
+      alert("Please select an activity");
+      return;
+    }
+
+
+    const code = punchlistCode?.split('-')[0];
     const request = {
       ...punchlistItem,
       punchlistCode: code,

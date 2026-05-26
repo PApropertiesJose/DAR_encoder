@@ -5,8 +5,7 @@ const useLoginMutation = () => {
   return useMutation({
     mutationFn: async (params) => {
       return client.post('/ldap/authenticate', params);
-    },
-    onSuccess: () => {},
+    }
   })
 
 }

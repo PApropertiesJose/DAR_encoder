@@ -323,7 +323,6 @@ const TaskRowSub = memo(({
     [params, block]
   );
 
-
   const isOverlapping = useMemo(() => {
     const admin = admins.find((a) => a.adminWorker === workerId);
     if (!admin) return false;
