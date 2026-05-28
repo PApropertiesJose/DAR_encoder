@@ -6,6 +6,7 @@ import ProtectedRoutes from './components/Routes'
 import Login from './Pages/Auth/Login' 
 import ProjectSelection from './Pages/ProjectSelection'
 import TaskEntries from './Pages/TaskEntries'
+import TaskEntriesOffline from './Pages/TaskEntriesOffline'
 import AdminPage from './Pages/Admin'
 
 const DASHBOARD_ROUTES = [
@@ -16,6 +17,10 @@ const DASHBOARD_ROUTES = [
       {
         path: StringRoutes.project_selection,
         Component: ProjectSelection
+      },
+      {
+        path: `${StringRoutes.project_selection_task_offline}`,
+        Component: TaskEntriesOffline,
       },
       {
         path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,

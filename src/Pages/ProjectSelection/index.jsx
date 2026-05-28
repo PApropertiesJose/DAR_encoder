@@ -20,7 +20,6 @@ import useAuth from '~/hooks/Auth/useAuth';
 import StringRoutes from '~/Constants/StringRoutes';
 
 const ProjectList = memo(({ params, searchQuery }) => {
-  console.log('show params: ', params);
   const { data, isLoading, isError, error, isSuccess } = useFetchProject(params);
   const navigate = useNavigate();
 
