@@ -1,13 +1,13 @@
 import { Container, Divider, Stack, Text, Breadcrumbs, Button, Anchor, Space, Paper } from '@mantine/core'
 import { MonthView } from '@mantine/schedule'
-import { memo, useCallback, useState } from 'react';
-import { events } from './data.js'
+import { memo, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router';
 import StringRoutes from '~/Constants/StringRoutes.js';
 import { ChevronRight } from 'lucide-react';
 import PhaseHeader from './Components/PhaseHeader.jsx';
 import { useIndexedDB } from '~/hooks/useIndexedDB';
 import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
+import { getDB } from '~/db/index';
 
 const TaskEntriesList = memo(() => {
   const { state } = useLocation();
@@ -28,6 +28,28 @@ const TaskEntriesList = memo(() => {
 
   const phase = state?.phase || currentPhaseList?.[0];
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [encodedEvents, setEncodedEvents] = useState([]);
+
+  useEffect(() => {
+    getDB().then(async (db) => {
+      const keys = await db.getAllKeys('taskSheetEntries');
+      // Keys are formatted as "sheet-{phaseCode}-{date}"
+      const prefix = `sheet-${phaseCode}-`;
+      const events = keys
+        .filter((k) => k.startsWith(prefix))
+        .map((k, i) => {
+          const date = k.slice(prefix.length);
+          return {
+            id: i + 1,
+            title: 'Encoded',
+            start: `${date} 00:00:00`,
+            end: `${date} 23:59:59`,
+            color: 'teal',
+          };
+        });
+      setEncodedEvents(events);
+    });
+  }, [phaseCode]);
 
   const items = [
     { title: "Phase", href: StringRoutes.project_selection_task_offline },
@@ -85,7 +107,7 @@ const TaskEntriesList = memo(() => {
           onDayClick={handleNavigate}
           date={currentDate}
           onDateChange={(value) => setCurrentDate(new Date(value))}
-          events={events}
+          events={encodedEvents}
           withWeekNumbers
           viewSelectProps={{ views: [] }}
         />

@@ -1,20 +1,41 @@
-import { memo, useState } from 'react';
-import { Container, Paper, Table, Text, useMantineColorScheme } from '@mantine/core';
+import { memo, useEffect, useState } from 'react';
+import { getDB } from '~/db/index';
+import { Button, Container, Group, Paper, Table, Text, useMantineColorScheme } from '@mantine/core';
 import BlkLotModal from './BlkLotModal';
 import TimePickerModal from './TimePickerModal';
 
 const thStyle = { textAlign: 'center' };
 const BG = '#00595c';
-const ACTIVITY_COUNT = 8;
 
 const TaskSheet = memo(({ params, rows = [] }) => {
   const { colorScheme } = useMantineColorScheme();
   const dark = colorScheme === 'dark';
 
+  const [activityCount, setActivityCount] = useState(0);
+
   // Blk & Lot modal
   const [blkLotOpen, setBlkLotOpen]   = useState(false);
   const [activeBlkLot, setActiveBlkLot] = useState(null);
   const [cellData, setCellData]         = useState({});
+
+  const sheetKey = params ? `sheet-${params.phaseCode ?? ''}-${params.date ?? ''}` : 'sheet';
+
+  // Load persisted cell data on mount and restore activity column count
+  useEffect(() => {
+    getDB().then((db) => db.get('taskSheetEntries', sheetKey)).then((saved) => {
+      if (!saved) return;
+      setCellData(saved);
+      const maxActIdx = Object.keys(saved).reduce((max, key) => {
+        const actIdx = parseInt(key.split('-')[1], 10);
+        return isNaN(actIdx) ? max : Math.max(max, actIdx);
+      }, -1);
+      if (maxActIdx >= 0) setActivityCount(maxActIdx + 1);
+    });
+  }, [sheetKey]);
+
+  const persistCellData = (next) => {
+    getDB().then((db) => db.put('taskSheetEntries', next, sheetKey));
+  };
 
   // Time modal
   const [timeOpen, setTimeOpen]     = useState(false);
@@ -27,7 +48,11 @@ const TaskSheet = memo(({ params, rows = [] }) => {
 
   const handleBlkLotConfirm = ({ block, lot }) => {
     const key = `${activeBlkLot.rowIdx}-${activeBlkLot.actIdx}`;
-    setCellData((prev) => ({ ...prev, [key]: { ...prev[key], block, lot } }));
+    setCellData((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], block, lot } };
+      persistCellData(next);
+      return next;
+    });
     setBlkLotOpen(false);
     setActiveBlkLot(null);
   };
@@ -40,7 +65,11 @@ const TaskSheet = memo(({ params, rows = [] }) => {
   const handleTimeConfirm = (time) => {
     const { rowIdx, actIdx, field } = activeTime;
     const key = `${rowIdx}-${actIdx}`;
-    setCellData((prev) => ({ ...prev, [key]: { ...prev[key], [field]: time } }));
+    setCellData((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], [field]: time } };
+      persistCellData(next);
+      return next;
+    });
     setTimeOpen(false);
     setActiveTime(null);
   };
@@ -58,6 +87,8 @@ const TaskSheet = memo(({ params, rows = [] }) => {
   const timeEmpty = dark ? '#25262b' : '#ffffff';
 
   const stickyBg = (rowIdx) => (rowIdx % 2 === 0 ? stripeEven : stripeOdd);
+
+  const [hoveredKey, setHoveredKey] = useState(null);
 
   const activeTimeKey = activeTime ? `${activeTime.rowIdx}-${activeTime.actIdx}` : null;
   const currentTimeValue = activeTimeKey ? cellData[activeTimeKey]?.[activeTime.field] : null;
@@ -78,7 +109,13 @@ const TaskSheet = memo(({ params, rows = [] }) => {
         initialTime={currentTimeValue}
       />
 
-      <div style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 360px)`, position: 'relative' }}>
+      <Group justify="flex-end" p="xs">
+        <Button size="xs" variant="light" color="teal" onClick={() => setActivityCount((c) => c + 1)}>
+          + Add Planned Activity
+        </Button>
+      </Group>
+
+      <div style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 400px)`, position: 'relative' }}>
         <Table
           withRowBorders
           withTableBorder
@@ -94,14 +131,14 @@ const TaskSheet = memo(({ params, rows = [] }) => {
               <Table.Th rowSpan={2} style={{ ...thStyle, position: 'sticky', top: 0, left: 0, background: BG, zIndex: 5 }}>NO</Table.Th>
               <Table.Th rowSpan={2} style={{ ...thStyle, minWidth: 100, position: 'sticky', top: 0, left: 40, background: BG, zIndex: 5 }}>SKILLS</Table.Th>
               <Table.Th rowSpan={2} style={{ ...thStyle, minWidth: 200, position: 'sticky', top: 0, left: 0, background: BG, zIndex: 5 }}>NAME</Table.Th>
-              {Array(ACTIVITY_COUNT).fill().map((_, i) => (
+              {Array(activityCount).fill().map((_, i) => (
                 <Table.Th key={i} colSpan={5} style={{ ...thStyle, position: 'sticky', top: 0, background: BG, zIndex: 3 }}>
                   Planned Activity {i + 1}
                 </Table.Th>
               ))}
             </Table.Tr>
             <Table.Tr bg={BG}>
-              {Array(ACTIVITY_COUNT).fill().map((_, i) => (
+              {Array(activityCount).fill().map((_, i) => (
                 <>
                   <Table.Th key={`bl-${i}`} style={{ ...thStyle, minWidth: 100, position: 'sticky', top: 30.5, background: BG, zIndex: 3 }}>Blk &amp; Lot</Table.Th>
                   <Table.Th key={`ti-${i}`} style={{ ...thStyle, minWidth: 80, position: 'sticky', top: 30.5, background: BG, zIndex: 3 }}>TimeIn</Table.Th>
@@ -120,22 +157,31 @@ const TaskSheet = memo(({ params, rows = [] }) => {
                   <Table.Td style={{ position: 'sticky', left: 0, background: bg, zIndex: 1 }}>{rowIdx + 1}</Table.Td>
                   <Table.Td style={{ position: 'sticky', left: 0, background: bg, zIndex: 2 }}>{row.adminPosition ?? '—'}</Table.Td>
                   <Table.Td style={{ position: 'sticky', left: 0, minWidth: 200, background: bg, zIndex: 3 }}>{row.adminName ?? '—'}</Table.Td>
-                  {Array(ACTIVITY_COUNT).fill().map((_, actIdx) => {
+                  {Array(activityCount).fill().map((_, actIdx) => {
                     const key = `${rowIdx}-${actIdx}`;
                     const entry = cellData[key];
+                    const hoverBg = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,89,92,0.08)';
+                    const hover = (cellId) => ({
+                      onMouseEnter: () => setHoveredKey(cellId),
+                      onMouseLeave: () => setHoveredKey(null),
+                    });
+                    const isHovered = (cellId) => hoveredKey === cellId;
+
                     return (
                       <>
                         {/* Blk & Lot */}
                         <Table.Td
                           key={`bl-${key}`}
                           onClick={() => handleBlkLotClick(rowIdx, actIdx)}
+                          {...hover(`bl-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 100,
                             textAlign: 'center',
-                            background: entry?.block ? blkLotSet : blkLotEmpty,
+                            background: isHovered(`bl-${key}`) ? hoverBg : entry?.block ? blkLotSet : blkLotEmpty,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
+                            transition: 'background 0.15s',
                           }}
                         >
                           {entry?.block ? (
@@ -149,13 +195,15 @@ const TaskSheet = memo(({ params, rows = [] }) => {
                         <Table.Td
                           key={`ti-${key}`}
                           onClick={() => handleTimeClick(rowIdx, actIdx, 'ti')}
+                          {...hover(`ti-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 80,
                             textAlign: 'center',
-                            background: entry?.ti ? timeSet : bg,
+                            background: isHovered(`ti-${key}`) ? hoverBg : entry?.ti ? timeSet : bg,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
+                            transition: 'background 0.15s',
                           }}
                         >
                           {entry?.ti ? (
@@ -169,13 +217,15 @@ const TaskSheet = memo(({ params, rows = [] }) => {
                         <Table.Td
                           key={`to-${key}`}
                           onClick={() => handleTimeClick(rowIdx, actIdx, 'to')}
+                          {...hover(`to-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 80,
                             textAlign: 'center',
-                            background: entry?.to ? timeSet : bg,
+                            background: isHovered(`to-${key}`) ? hoverBg : entry?.to ? timeSet : bg,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
+                            transition: 'background 0.15s',
                           }}
                         >
                           {entry?.to ? (
@@ -185,8 +235,8 @@ const TaskSheet = memo(({ params, rows = [] }) => {
                           )}
                         </Table.Td>
 
-                        <Table.Td key={`ac-${key}`} style={{ background: bg }}></Table.Td>
-                        <Table.Td key={`ju-${key}`} style={{ background: bg }}></Table.Td>
+                        <Table.Td key={`ac-${key}`} {...hover(`ac-${key}`)} style={{ background: isHovered(`ac-${key}`) ? hoverBg : bg, transition: 'background 0.15s' }}></Table.Td>
+                        <Table.Td key={`ju-${key}`} {...hover(`ju-${key}`)} style={{ background: isHovered(`ju-${key}`) ? hoverBg : bg, transition: 'background 0.15s' }}></Table.Td>
                       </>
                     );
                   })}

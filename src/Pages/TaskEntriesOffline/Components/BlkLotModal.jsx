@@ -19,19 +19,29 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
   const blockOptions = useMemo(() => {
     const items = blockData?.data ?? blockData ?? [];
     if (!Array.isArray(items)) return [];
-    return items.map((b) => ({
-      value: b.code ?? b,
-      label: b.code ?? b,
-    }));
+    const seen = new Set();
+    return items.reduce((acc, b) => {
+      const value = b.code ?? b;
+      if (!seen.has(value)) {
+        seen.add(value);
+        acc.push({ value, label: String(value) });
+      }
+      return acc;
+    }, []);
   }, [blockData]);
 
   const lotOptions = useMemo(() => {
     const items = lotData?.data ?? lotData ?? [];
     if (!Array.isArray(items)) return [];
-    return items.map((l) => ({
-      value: l.code ?? l,
-      label: l.code ?? l,
-    }));
+    const seen = new Set();
+    return items.reduce((acc, l) => {
+      const value = l.code ?? l;
+      if (!seen.has(value)) {
+        seen.add(value);
+        acc.push({ value, label: String(value) });
+      }
+      return acc;
+    }, []);
   }, [lotData]);
 
   const handleClose = () => {

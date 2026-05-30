@@ -39,14 +39,15 @@ const TaskEntryForm = memo(() => {
     </Anchor>
   ));
 
+  const selectedDate = state?.date ?? '';
+
   const params = useMemo(() => {
     return {
       username: user?.username,
-      phaseCode: phaseCode
+      phaseCode: phaseCode,
+      date: selectedDate,
     }
-  }, [phaseCode, user])
-
-  const selectedDate = state?.date ?? '';
+  }, [phaseCode, user, selectedDate])
 
   const loadSheetRows = useCallback(async () => {
     try {

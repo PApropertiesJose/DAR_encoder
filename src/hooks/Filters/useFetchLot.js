@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import client from "~/config/client";
+import client from "~/config/client"
 import QueryKeys from "~/Constants/QueryKeys";
 import { cacheRecords, getAllCached } from "~/db/helpers";
 
