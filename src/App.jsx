@@ -3,6 +3,7 @@ import Router from "./Router"
 import '@mantine/notifications/styles.css';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
+import '@mantine/schedule/styles.css';
 import { Notifications } from '@mantine/notifications';
 import { theme as lightTheme, darkTheme } from './theme.ts';
 import { useState, useEffect } from "react";

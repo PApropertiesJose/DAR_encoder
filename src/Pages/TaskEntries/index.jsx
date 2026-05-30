@@ -55,7 +55,7 @@ const TaskEntriesContainer = () => {
         <Group gap={10}>
           <Text size="xl" fw={500}>Task Entries</Text>
         </Group>
-        <Breadcrumbs p={0} separator={<ChevronRight size={12} />} separatorMargin={3}>
+        <Breadcrumbs p={0} separator={<ChevronRight size={12} />} separatorMargin={"xs"}>
           {items}
         </Breadcrumbs>
       </Stack>

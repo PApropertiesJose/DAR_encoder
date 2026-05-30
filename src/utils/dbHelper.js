@@ -1,4 +1,4 @@
-import { openDB } from "node_modules/idb/build";
+import { openDB } from "idb";
 
 export const saveDB = async (dbRef) => {
   console.log('attempting to saved from local db');

@@ -8,6 +8,8 @@ import ProjectSelection from './Pages/ProjectSelection'
 import TaskEntries from './Pages/TaskEntries'
 import TaskEntriesOffline from './Pages/TaskEntriesOffline'
 import AdminPage from './Pages/Admin'
+import TaskEntriesList from './Pages/TaskEntriesOffline/TaskEntriesList'
+import TaskEntryForm from './Pages/TaskEntriesOffline/TaskEntryForm'
 
 const DASHBOARD_ROUTES = [
   {
@@ -21,6 +23,14 @@ const DASHBOARD_ROUTES = [
       {
         path: `${StringRoutes.project_selection_task_offline}`,
         Component: TaskEntriesOffline,
+      },
+      {
+        path: `${StringRoutes.project_selection_task_offline_list}/:phaseCode?`,
+        Component: TaskEntriesList
+      },
+      {
+        path: `${StringRoutes.project_selection_task_offline_list_form}`,
+        Component: TaskEntryForm
       },
       {
         path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,

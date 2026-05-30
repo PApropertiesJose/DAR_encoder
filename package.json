@@ -1,7 +1,7 @@
 {
   "name": "DAR",
   "private": true,
-  "version": "2.1.5",
+  "version": "2.1.11",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,12 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mantine/charts": "^9.1.1",
-    "@mantine/core": "^9.1.1",
-    "@mantine/dates": "^9.1.1",
-    "@mantine/form": "^9.1.1",
-    "@mantine/hooks": "^9.1.1",
-    "@mantine/notifications": "^9.1.1",
+    "@mantine/charts": "^9.2.2",
+    "@mantine/core": "^9.2.2",
+    "@mantine/dates": "^9.2.2",
+    "@mantine/form": "^9.2.2",
+    "@mantine/hooks": "^9.2.2",
+    "@mantine/notifications": "^9.2.2",
+    "@mantine/schedule": "^9.2.2",
     "@sentry/react": "^10.51.0",
     "@tanstack/react-query": "^5.75.1",
     "@tanstack/react-virtual": "^3.13.23",
@@ -23,6 +24,7 @@
     "@uiw/react-json-view": "^2.0.0-alpha.32",
     "axios": "^1.9.0",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.21",
     "idb": "^8.0.3",
     "immer": "^11.1.4",
     "leaflet": "^1.9.4",

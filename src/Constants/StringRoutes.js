@@ -11,6 +11,8 @@ class StringRoutes {
 
   static project_selection = '/phase'
   static project_selection_task_offline = '/offline'
+  static project_selection_task_offline_list = '/offline/list'
+  static project_selection_task_offline_list_form = '/offline/list/:phaseCode?/form'
   static project_selection_task_entries = '/phase/task-entries'
 
 
