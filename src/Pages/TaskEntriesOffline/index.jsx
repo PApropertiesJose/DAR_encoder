@@ -10,7 +10,7 @@ import { getDBService } from '~/services/indexedDB';
 import { useIndexedDB } from '~/hooks/useIndexedDB';
 import ErrorElement from '~/components/ErrorElement';
 import StringRoutes from '~/Constants/StringRoutes';
-import { DB_SCHEMA } from '~/Constants/schemas';
+import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 
 const ProjectListOffline = memo(({
   username,
@@ -21,7 +21,7 @@ const ProjectListOffline = memo(({
   // Load cached projects from IndexedDB reactively
   const { data: cachedProjects, loading: dbLoading } = useIndexedDB('projects', {
     dbName: 'AppOfflineDB',
-    version: 1,
+    version: DB_VERSION,
     schema: DB_SCHEMA
   });
 
@@ -37,7 +37,7 @@ const ProjectListOffline = memo(({
 
   const saveOffline = async () => {
     try {
-      const db = getDBService('AppOfflineDB', 1, DB_SCHEMA);
+      const db = getDBService('AppOfflineDB', DB_VERSION, DB_SCHEMA);
       // Overwrite cache with fresh results
       await db.clear('projects');
       for (const item of results) {

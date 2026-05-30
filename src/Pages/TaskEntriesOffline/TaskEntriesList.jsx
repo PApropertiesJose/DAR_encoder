@@ -1,13 +1,13 @@
 import { Container, Divider, Stack, Text, Breadcrumbs, Button, Anchor, Space, Paper } from '@mantine/core'
 import { MonthView } from '@mantine/schedule'
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { events } from './data.js'
 import { Link, useNavigate, useParams, useLocation } from 'react-router';
 import StringRoutes from '~/Constants/StringRoutes.js';
 import { ChevronRight } from 'lucide-react';
 import PhaseHeader from './Components/PhaseHeader.jsx';
 import { useIndexedDB } from '~/hooks/useIndexedDB';
-import { DB_SCHEMA } from '~/Constants/schemas';
+import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 
 const TaskEntriesList = memo(() => {
   const { state } = useLocation();
@@ -16,11 +16,18 @@ const TaskEntriesList = memo(() => {
 
   const { data: currentPhaseList } = useIndexedDB('currentPhaseData', {
     dbName: 'AppOfflineDB',
-    version: 1,
+    version: DB_VERSION,
+    schema: DB_SCHEMA
+  });
+
+  const { add: addTaskEntry } = useIndexedDB('taskEntries', {
+    dbName: 'AppOfflineDB',
+    version: DB_VERSION,
     schema: DB_SCHEMA
   });
 
   const phase = state?.phase || currentPhaseList?.[0];
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const items = [
     { title: "Phase", href: StringRoutes.project_selection_task_offline },
@@ -41,14 +48,20 @@ const TaskEntriesList = memo(() => {
   ));
 
 
-  const handleNavigate = useCallback(() => {
+  const handleNavigate = useCallback(async (date) => {
+    await addTaskEntry({
+      phaseCode,
+      date,
+      createdAt: new Date().toISOString(),
+    });
     const routeString = StringRoutes.project_selection_task_offline_list_form.replace(':phaseCode?', phaseCode);
     navigate(routeString, {
       state: {
-        phase
+        phase,
+        date,
       }
     });
-  }, [phase, phaseCode, navigate])
+  }, [phase, phaseCode, navigate, addTaskEntry])
 
 
   return (
@@ -70,7 +83,12 @@ const TaskEntriesList = memo(() => {
         <Divider my={10} />
         <MonthView
           onDayClick={handleNavigate}
-          date={new Date()} events={events} withWeekNumbers />
+          date={currentDate}
+          onDateChange={(value) => setCurrentDate(new Date(value))}
+          events={events}
+          withWeekNumbers
+          viewSelectProps={{ views: [] }}
+        />
       </Paper>
     </Container>
   );

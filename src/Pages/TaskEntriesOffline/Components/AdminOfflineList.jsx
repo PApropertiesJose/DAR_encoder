@@ -15,7 +15,7 @@ import useFetchAdmin from '~/hooks/Filters/useFetchAdmin';
 import ErrorElement from '~/components/ErrorElement';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useIndexedDB } from '~/hooks/useIndexedDB';
-import { DB_SCHEMA } from '~/Constants/schemas';
+import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 import { getDBService } from '~/services/indexedDB';
 
 const AutoCompleteAdminOptions = memo(({ item, isAlreadyAdded = false }) => {
@@ -41,12 +41,14 @@ const AutoCompleteAdmins = memo(({
   params,
   forceFetch = false,
   onSyncComplete,
+  onSelect,
+  addedAdminIds = [],
 }) => {
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
-  const { data: cachedAdmins, loading: dbLoading } = useIndexedDB('admins', { schema: DB_SCHEMA });
-  const { data: currentPhase, loading: phaseLoading } = useIndexedDB('currentPhaseData', { schema: DB_SCHEMA });
+  const { data: cachedAdmins, loading: dbLoading } = useIndexedDB('admins', { schema: DB_SCHEMA, version: DB_VERSION });
+  const { data: currentPhase, loading: phaseLoading } = useIndexedDB('currentPhaseData', { schema: DB_SCHEMA, version: DB_VERSION });
 
   const hasCache = cachedAdmins && cachedAdmins.length > 0;
   const isPhaseMatched = currentPhase && currentPhase.length > 0 && currentPhase[0]?.code === params.phaseCode;
@@ -69,7 +71,7 @@ const AutoCompleteAdmins = memo(({
 
   const saveOffline = async () => {
     try {
-      const db = getDBService('AppOfflineDB', 1, DB_SCHEMA);
+      const db = getDBService('AppOfflineDB', DB_VERSION, DB_SCHEMA);
       // Overwrite cache with fresh results
       await db.clear('admins');
       console.log(data);
@@ -107,7 +109,7 @@ const AutoCompleteAdmins = memo(({
 
   const options = filteredResults?.map((item) => {
     return (
-      <AutoCompleteAdminOptions isAlreadyAdded={false} item={item} key={item.id} />
+      <AutoCompleteAdminOptions isAlreadyAdded={addedAdminIds.includes(item.id)} item={item} key={item.id} />
     )
   });
 
@@ -119,7 +121,8 @@ const AutoCompleteAdmins = memo(({
         w={"100%"}
         store={combobox}
         onOptionSubmit={(val) => {
-          // handleAddAdmin(val);
+          onSelect?.(val);
+          setSearch('');
         }}
       >
         <Combobox.Target>
@@ -135,7 +138,7 @@ const AutoCompleteAdmins = memo(({
             }}
           >
             <Input.Placeholder>
-              {search || 'Input name of the Admin'}
+              {'Input name of the Admin'}
             </Input.Placeholder>
           </InputBase>
         </Combobox.Target>

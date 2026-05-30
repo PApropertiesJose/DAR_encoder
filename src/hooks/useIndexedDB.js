@@ -26,7 +26,7 @@ import { getDBService } from "~/services/indexedDB";
 export function useIndexedDB(storeName, options = {}) {
   const {
     dbName = "AppOfflineDB",
-    version = 1,
+    version = 2,
     schema = null,
     autoInit = true,
   } = options;

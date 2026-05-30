@@ -7,6 +7,7 @@ import { BarChart, ChevronRight, Sun, Moon, HistoryIcon, LayoutDashboardIcon, Lo
 import '../index.css';
 import useAuth from '~/hooks/Auth/useAuth';
 import { useEffect, useRef } from 'react';
+import { useSyncOnReconnect } from '~/hooks/useSyncOnReconnect';
 import packageJson from '../../package.json';
 import CrashReport from '~/components/Modal/CrashReport';
 
@@ -42,6 +43,8 @@ const ButtonNavLink = ({
 }
 
 const DashboardLayout = () => {
+  useSyncOnReconnect();
+
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const pinned = useHeadroom({ fixedAt: 120 })

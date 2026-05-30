@@ -38,16 +38,16 @@ export class IndexedDBService {
     this.initPromise = (async () => {
       try {
         const schema = this.schema;
+        const self = this;
         this.db = await openDB(this.dbName, this.version, {
           upgrade(db, oldVersion, newVersion, transaction) {
             console.log(`Upgrading DB "${db.name}" from v${oldVersion} to v${newVersion}`);
-            
+
             if (!schema || !schema.stores) return;
 
-            // Handle creation and alteration of object stores
             for (const [storeName, storeConfig] of Object.entries(schema.stores)) {
               let store;
-              
+
               if (!db.objectStoreNames.contains(storeName)) {
                 const { indexes, ...storeOptions } = storeConfig;
                 store = db.createObjectStore(storeName, storeOptions);
@@ -56,7 +56,6 @@ export class IndexedDBService {
                 store = transaction.objectStore(storeName);
               }
 
-              // Create indexes if they don't exist
               if (storeConfig.indexes && Array.isArray(storeConfig.indexes)) {
                 for (const indexDef of storeConfig.indexes) {
                   if (!store.indexNames.contains(indexDef.name)) {
@@ -66,6 +65,16 @@ export class IndexedDBService {
                 }
               }
             }
+          },
+          // Close this connection if a newer version needs to upgrade
+          blocking() {
+            console.warn(`DB "${self.dbName}" v${self.version} is blocking an upgrade — closing.`);
+            self.db?.close();
+            self.db = null;
+            self.initPromise = null;
+          },
+          blocked() {
+            console.warn(`DB "${self.dbName}" v${self.version} upgrade is blocked by an older connection.`);
           },
         });
         return this.db;
@@ -250,7 +259,7 @@ const dbRegistry = {};
  * @param {Object} schema 
  * @returns {IndexedDBService}
  */
-export function getDBService(dbName = "AppOfflineDB", version = 1, schema = null) {
+export function getDBService(dbName = "AppOfflineDB", version = 2, schema = null) {
   const cacheKey = `${dbName}_v${version}`;
   if (!dbRegistry[cacheKey]) {
     dbRegistry[cacheKey] = new IndexedDBService(dbName, version, schema);
