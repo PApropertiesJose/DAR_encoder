@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { getDB } from '~/db/index';
-import { ActionIcon, Button, Container, Group, Paper, Table, Text, useMantineColorScheme, Alert, ThemeIcon, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Container, Group, Paper, Table, Text, useMantineColorScheme, Box, TextInput, ThemeIcon } from '@mantine/core';
 import BlkLotModal from './BlkLotModal';
 import TimePickerModal from './TimePickerModal';
 import { InfoIcon, Trash2Icon } from 'lucide-react'
@@ -172,9 +172,9 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
 
   const matchedIndices = debouncedQuery.trim()
     ? rows.reduce((acc, row, idx) => {
-        if ((row.adminName ?? '').toLowerCase().includes(searchQuery.trim().toLowerCase())) acc.push(idx);
-        return acc;
-      }, [])
+      if ((row.adminName ?? '').toLowerCase().includes(searchQuery.trim().toLowerCase())) acc.push(idx);
+      return acc;
+    }, [])
     : [];
 
   useEffect(() => {
@@ -208,19 +208,26 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
       />
 
       <Group justify="space-between" mb={10}>
-        <TextInput
-          size="xs"
-          label="Search Admins"
-          placeholder='Search name of an admin'
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
-        />
+        <Box w={{ md: "40%", base: '100%' }}>
+          <TextInput
+            label="Search Admins"
+            placeholder='Search name of an admin'
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          />
+          <Group gap={0}>
+            <ThemeIcon variant="transparent" c="blue">
+              <InfoIcon size={16} />
+            </ThemeIcon>
+            <Text fw={700} c="dimmed" size="xs">Long press BLK & LOT cell to remove an activity</Text>
+          </Group>
+        </Box>
         <Button size="xs" variant="light" color="teal" onClick={() => setActivityCount((c) => c + 1)}>
           + Add Planned Activity
         </Button>
       </Group>
 
-      <div ref={scrollContainerRef} style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 460px)`, position: 'relative' }}>
+      <div ref={scrollContainerRef} style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 490px)`, position: 'relative' }}>
         <Table
           withRowBorders
           withTableBorder
