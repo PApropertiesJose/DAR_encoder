@@ -70,6 +70,16 @@ const TaskEntryForm = memo(() => {
     loadSheetRows();
   }, [loadSheetRows]);
 
+  const handleDeleteRow = useCallback(async (row) => {
+    try {
+      const db = getDBService('AppOfflineDB', DB_VERSION, DB_SCHEMA);
+      await db.delete('sheetRows', row.id);
+      await loadSheetRows();
+    } catch (err) {
+      console.error('Failed to delete sheet row:', err);
+    }
+  }, [loadSheetRows]);
+
   const handleAdminSelect = useCallback(async (admin) => {
     try {
       await addSheetRow({
@@ -130,7 +140,7 @@ const TaskEntryForm = memo(() => {
       </Paper>
 
       <Space h={15}/>
-      <TaskSheet params={params} rows={sheetRows} />
+      <TaskSheet params={params} rows={sheetRows} onDeleteRow={handleDeleteRow} />
     </Container>
   );
 })
