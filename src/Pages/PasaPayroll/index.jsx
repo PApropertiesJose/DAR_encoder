@@ -1,0 +1,182 @@
+import {
+  Container,
+  Stack,
+  Text,
+  Breadcrumbs,
+  Divider,
+  Anchor,
+  Paper,
+  Box,
+  ThemeIcon,
+  Group,
+  Button,
+  TextInput,
+  Grid,
+  Space,
+  Select
+} from '@mantine/core'
+import { Link } from 'react-router';
+import { ChevronRight, Users, NotebookPen, TriangleAlert } from 'lucide-react';
+import { memo, useEffect, useMemo } from 'react'
+import PasaPayrollList from './Components/PasaPayrollList';
+import useFetchAdminPosition from '~/hooks/Admins/useFetchAdminPositions';
+import ErrorElement from '~/components/ErrorElement';
+import PasaPayrollProvider, { usePasaPayrollContext } from './context';
+import { useForm } from '@mantine/form';
+
+const PasaPayrollPositions = memo(() => {
+  const { data, isLoading, isError, isSuccess, error } = useFetchAdminPosition();
+  const { handleChangeRate } = usePasaPayrollContext()
+
+  const positions = useMemo(() => {
+    if (!isSuccess) return;
+    return data.data;
+  }, [isSuccess, data]);
+
+  if (isError) {
+    const errorMessage = error.response?.data?.errorMessage ?? error.message;
+    return <ErrorElement>{errorMessage}</ErrorElement>
+  }
+
+  return (
+    <Select
+      searchable
+      label="Position"
+      data={positions}
+      onChange={handleChangeRate}
+      placeholder="Select a position"
+      loading={isLoading}
+    />
+  )
+
+})
+
+const PasaPayrollForm = memo(() => {
+  const form = useForm({
+    mode: 'controlled',
+    initialValues: {
+      regularRate: 0.00,
+      overtimeRate: 0.00
+    }
+  })
+  const { adminRate } = usePasaPayrollContext();
+
+  useEffect(() => {
+    form.setValues({
+      regularRate: adminRate.regular,
+      overtimeRate: adminRate.overtime
+    })
+  }, [adminRate])
+
+
+
+  return (
+    <Box mt={10}>
+      <Paper
+        shadow='sm'
+        radius={"lg"}
+      >
+        <Stack>
+          <Group gap={10} justify='space-between' >
+            <Group>
+              <ThemeIcon variant='light' size={50} c="blue.7" >
+                <NotebookPen size={22} />
+              </ThemeIcon>
+              <Stack gap={0}>
+                <Text fw={600} size="md" c="blue.7">Pasa Payroll Form</Text>
+                <Text fw={300} size="xs" c="dimmed">information details of the admin</Text>
+              </Stack>
+            </Group>
+            <Button variant="light">
+              SAVE
+            </Button>
+          </Group>
+        </Stack>
+        <Divider my={10} />
+        <form>
+          <Grid >
+            <Grid.Col span={{ md: 4, base: 12 }}>
+              <Stack gap={0}>
+                <TextInput
+                  label="Name"
+                  placeholder="input Name"
+                />
+                <Group gap={3}>
+                  <ThemeIcon variant="transparent" c="orange">
+                    <TriangleAlert size={17} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed" fw={300} component="span">Discretion if the name already exist in the list <Text fw="800" size="xs" c="red" component="span">DO NOT ADD</Text>! To prevent duplicates</Text>
+                </Group>
+              </Stack>
+            </Grid.Col>
+            <Grid.Col span={{ md: 3, base: 12 }}>
+              <PasaPayrollPositions />
+
+            </Grid.Col>
+            <Grid.Col span={{ md: 1, base: 6 }}>
+              <TextInput
+                type="number"
+                label="Regular Rate"
+                value={form.values.regularRate}
+                onChange={(e) => form.setFieldValue('regularRate', e.currentTarget.value)}
+              />
+            </Grid.Col>
+            <Grid.Col span={{ md: 1, base: 6 }}>
+              <TextInput
+                type="number"
+                label="Overtime Rate"
+                value={form.values.overtimeRate}
+                onChange={(e) => form.setFieldValue('overtimeRate', e.currentTarget.value)}
+              />
+            </Grid.Col>
+
+          </Grid>
+
+        </form>
+      </Paper>
+    </Box>
+  )
+})
+
+
+
+const PasaPayrollWrapper = () => {
+  const items = [{ title: "Pasa Payroll", href: null }].map((item, index) => (
+    <Anchor
+      key={index}
+      size="xs"
+      component={Link}
+      to={item.href || '#'}
+      c={item.href ? 'var(--accent)' : 'dimmed'}
+      viewTransition
+      style={{ fontFamily: 'monospace', viewTransitionName: item.title }}
+    >
+      {item.title}
+    </Anchor>
+  ));
+
+  return (
+    <Container fluid p={0}>
+      <Stack gap={0} pb={10} m={0}>
+        <Text size="xl" fw={500}>Management</Text>
+        <Breadcrumbs p={0} separator={<ChevronRight size={12} />} separatorMargin="xs">
+          {items}
+        </Breadcrumbs>
+      </Stack>
+      <Divider />
+
+      <PasaPayrollForm />
+      <PasaPayrollList />
+    </Container>
+  )
+}
+
+const PasaPayroll = () => {
+  return (
+    <PasaPayrollProvider>
+      <PasaPayrollWrapper />
+    </PasaPayrollProvider>
+  )
+}
+
+export default PasaPayroll;

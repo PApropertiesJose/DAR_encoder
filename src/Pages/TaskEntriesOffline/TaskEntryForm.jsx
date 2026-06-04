@@ -2,7 +2,7 @@ import { Container, Group, Anchor, Breadcrumbs, Stack, Text, Divider, Paper, Spa
 import { memo, useCallback, useEffect, useMemo, useState } from 'react' // useMemo kept for params
 import StringRoutes from '~/Constants/StringRoutes';
 import { Link, useLocation, useParams } from 'react-router'
-import { ChevronRight, CalendarSyncIcon } from 'lucide-react';
+import { ChevronRight, CalendarSyncIcon, TextSearch } from 'lucide-react';
 import useAuth from '~/hooks/Auth/useAuth';
 import AutoCompleteAdmins from './Components/AdminOfflineList';
 import PhaseHeader from './Components/PhaseHeader';
@@ -10,6 +10,7 @@ import { useIndexedDB } from '~/hooks/useIndexedDB';
 import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 import { getDBService } from '~/services/indexedDB';
 import TaskSheet from './Components/TaskSheet';
+
 
 const TaskEntryForm = memo(() => {
   const { user } = useAuth();
@@ -97,16 +98,31 @@ const TaskEntryForm = memo(() => {
     }
   }, [addSheetRow, loadSheetRows, phaseCode, selectedDate, user?.username]);
 
+  const [validateNonce, setValidateNonce] = useState(0);
+  const handleValidateEntries = () => {
+    setValidateNonce((n) => n + 1);
+  }
+
   return (
     <Container fluid p={0} m={0}>
-      <Stack gap={0} pb={10} m={0}>
-        <Text size="xl" fw={500}>
-          Task Entries
-        </Text>
-        <Breadcrumbs p={0} separator={<ChevronRight size={12} />} separatorMargin={1}>
-          {items}
-        </Breadcrumbs>
-      </Stack>
+      <Group justify='space-between'>
+        <Stack gap={0} pb={10} m={0}>
+          <Text size="xl" fw={500}>
+            Task Entries
+          </Text>
+          <Breadcrumbs p={0} separator={<ChevronRight size={12} />} separatorMargin={1}>
+            {items}
+          </Breadcrumbs>
+        </Stack>
+        <Button 
+          onClick={handleValidateEntries}
+          leftSection={<TextSearch size={17} />}
+          size="compact-md" variant="outline">
+          <Text size="xs">
+            Validate Entries
+          </Text>
+        </Button>
+      </Group>
       <Divider />
 
       <Space h={10} />
@@ -121,7 +137,6 @@ const TaskEntryForm = memo(() => {
             <Box w={{ md: '30%', base: '100%' }}>
               <AutoCompleteAdmins
                 onSyncComplete={() => {
-                  console.log('force fetching');
                   setForceFetch(false)
                 }}
                 onSelect={handleAdminSelect}
@@ -139,8 +154,8 @@ const TaskEntryForm = memo(() => {
         </Stack>
       </Paper>
 
-      <Space h={15}/>
-      <TaskSheet params={params} rows={sheetRows} onDeleteRow={handleDeleteRow} />
+      <Space h={15} />
+      <TaskSheet params={params} rows={sheetRows} onDeleteRow={handleDeleteRow} validateNonce={validateNonce} />
     </Container>
   );
 })

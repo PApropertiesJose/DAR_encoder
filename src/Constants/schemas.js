@@ -1,4 +1,4 @@
-export const DB_VERSION = 2;
+export const DB_VERSION = 4;
 
 export const DB_SCHEMA = {
   stores: {
@@ -13,5 +13,8 @@ export const DB_SCHEMA = {
         { name: 'byPhaseDate', keyPath: ['phaseCode', 'date'] },
       ],
     },
+    units: { keyPath: 'block' },
+    // Activities grouped by construction index, keyed by `${phase}::${constructionIndex}`
+    activities: { keyPath: 'id' },
   }
 };

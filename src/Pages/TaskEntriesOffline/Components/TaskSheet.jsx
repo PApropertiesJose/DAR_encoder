@@ -1,15 +1,26 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { getDB } from '~/db/index';
-import { ActionIcon, Button, Container, Group, Paper, Table, Text, useMantineColorScheme, Box, TextInput, ThemeIcon } from '@mantine/core';
+import { ActionIcon, Button, Container, Group, Paper, Table, Text, useMantineColorScheme, Box, TextInput, ThemeIcon, Tooltip, Stack } from '@mantine/core';
 import BlkLotModal from './BlkLotModal';
+import ActivityModal from './ActivityModal';
 import TimePickerModal from './TimePickerModal';
+import JustificationModal from './JustificationModal';
 import { InfoIcon, Trash2Icon } from 'lucide-react'
 import { notifications } from '@mantine/notifications';
 
 const thStyle = { textAlign: 'center' };
 const BG = '#00595c';
 
-const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
+// 16:00 in minutes — activities ending past this require a justification.
+const SIXTEEN = 16 * 60;
+
+const toMinutes = (t) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+};
+
+const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) => {
   const { colorScheme } = useMantineColorScheme();
   const dark = colorScheme === 'dark';
 
@@ -42,6 +53,10 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
         : db.put('taskSheetEntries', next, sheetKey)
     );
   };
+
+  // Activity modal
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activeActivity, setActiveActivity] = useState(null); // { rowIdx, actIdx }
 
   // Time modal
   const [timeOpen, setTimeOpen] = useState(false);
@@ -117,15 +132,32 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
     handleBlkLotClick(rowIdx, actIdx);
   };
 
-  const handleBlkLotConfirm = ({ block, lot }) => {
+  const handleBlkLotConfirm = ({ block, lot, modelCode }) => {
     const key = `${activeBlkLot.rowIdx}-${activeBlkLot.actIdx}`;
     setCellData((prev) => {
-      const next = { ...prev, [key]: { ...prev[key], block, lot } };
+      const next = { ...prev, [key]: { ...prev[key], block, lot, modelCode } };
       persistCellData(next);
       return next;
     });
     setBlkLotOpen(false);
     setActiveBlkLot(null);
+  };
+
+  const handleActivityClick = (rowIdx, actIdx) => {
+    setActiveActivity({ rowIdx, actIdx });
+    setActivityOpen(true);
+  };
+
+  const handleActivityConfirm = (activity) => {
+    const key = `${activeActivity.rowIdx}-${activeActivity.actIdx}`;
+    setCellData((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], ...activity } };
+      persistCellData(next);
+      return next;
+    });
+    setActivityOpen(false);
+    setActiveActivity(null);
+    notifications.show({ title: 'Activity saved', color: 'teal', position: 'top-right' });
   };
 
   const handleTimeClick = (rowIdx, actIdx, field) => {
@@ -145,6 +177,78 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
     setActiveTime(null);
   };
 
+  // Justification modal
+  const [justOpen, setJustOpen] = useState(false);
+  const [activeJust, setActiveJust] = useState(null); // { rowIdx, actIdx }
+
+  const handleJustificationClick = (rowIdx, actIdx) => {
+    setActiveJust({ rowIdx, actIdx });
+    setJustOpen(true);
+  };
+
+  const handleJustificationConfirm = (text) => {
+    const key = `${activeJust.rowIdx}-${activeJust.actIdx}`;
+    setCellData((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], justification: text } };
+      persistCellData(next);
+      return next;
+    });
+    setJustOpen(false);
+    setActiveJust(null);
+  };
+
+  // Overlap detection — for each admin row, flag activities whose time
+  // ranges overlap each other (e.g. 7:00–8:00 vs 7:30–10:00).
+  const overlapKeys = useMemo(() => {
+    const set = new Set();
+    for (let r = 0; r < rows.length; r++) {
+      const intervals = [];
+      for (let a = 0; a < activityCount; a++) {
+        const e = cellData[`${r}-${a}`];
+        const start = toMinutes(e?.ti);
+        const end = toMinutes(e?.to);
+        if (start != null && end != null && end > start) intervals.push({ a, start, end });
+      }
+      for (let i = 0; i < intervals.length; i++) {
+        for (let j = i + 1; j < intervals.length; j++) {
+          const A = intervals[i];
+          const B = intervals[j];
+          if (A.start < B.end && B.start < A.end) {
+            set.add(`${r}-${A.a}`);
+            set.add(`${r}-${B.a}`);
+          }
+        }
+      }
+    }
+    return set;
+  }, [cellData, rows.length, activityCount]);
+
+  // Summarise issues when the user clicks "Validate Entries" in the parent.
+  useEffect(() => {
+    if (!validateNonce) return; // skip initial mount
+    let missingJust = 0;
+    for (let r = 0; r < rows.length; r++) {
+      for (let a = 0; a < activityCount; a++) {
+        const e = cellData[`${r}-${a}`];
+        const end = toMinutes(e?.to);
+        if (end != null && end > SIXTEEN && !(e?.justification?.trim())) missingJust++;
+      }
+    }
+    const overlaps = overlapKeys.size;
+    if (overlaps === 0 && missingJust === 0) {
+      notifications.show({ title: 'Validation passed', message: 'No overlapping activities or missing justifications.', color: 'teal', position: 'top-right' });
+    } else {
+      notifications.show({
+        title: 'Validation issues found',
+        message: `${overlaps} overlapping activity cell(s) highlighted in red. ${missingJust} activity(ies) past 16:00 still need a justification.`,
+        color: 'red',
+        position: 'top-right',
+        autoClose: 6000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validateNonce]);
+
   // Stripe colors — theme-aware
   const stripeEven = dark ? '#1a1b1e' : '#f8f9fa';
   const stripeOdd = dark ? '#25262b' : '#ffffff';
@@ -157,6 +261,14 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
   const timeSet = dark ? '#1a2a3a' : '#e3f2fd';
   const timeEmpty = dark ? '#25262b' : '#ffffff';
 
+  // Overlap highlight — theme-aware red
+  const overlapBg = dark ? '#5c1a1a' : '#ffc9c9';
+  const overlapText = dark ? '#ffa8a8' : '#c92a2a';
+
+  // Justification cell colors
+  const justFilledBg = '#D51C39'; // solid red once a justification is entered
+  const justRequiredBg = dark ? '#3a2a10' : '#fff3bf'; // amber prompt: needs input
+
   const stickyBg = (rowIdx) => (rowIdx % 2 === 0 ? stripeEven : stripeOdd);
 
   const [hoveredKey, setHoveredKey] = useState(null);
@@ -164,6 +276,72 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const rowRefs = useRef({});
   const scrollContainerRef = useRef(null);
+
+  // Keyboard cell navigation. Columns are flattened: each activity has 5
+  // columns (Blk&Lot, TimeIn, TimeOut, Activity, Justification).
+  const COLS_PER_ACT = 5;
+  const [selectedCell, setSelectedCell] = useState(null); // { row, col }
+  const cellRefs = useRef({});
+
+  const activateCell = ({ row, col }) => {
+    const actIdx = Math.floor(col / COLS_PER_ACT);
+    const field = col % COLS_PER_ACT;
+    if (field === 0) handleBlkLotClickGuarded(row, actIdx);
+    else if (field === 1) handleTimeClick(row, actIdx, 'ti');
+    else if (field === 2) handleTimeClick(row, actIdx, 'to');
+    else if (field === 3) handleActivityClick(row, actIdx);
+    else if (field === 4) handleJustificationClick(row, actIdx);
+  };
+
+  const handleSheetKeyDown = (e) => {
+    const totalCols = activityCount * COLS_PER_ACT;
+    if (totalCols === 0 || rows.length === 0) return;
+
+    if (e.key === 'Enter') {
+      if (selectedCell) {
+        e.preventDefault();
+        activateCell(selectedCell);
+      }
+      return;
+    }
+
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+
+    setSelectedCell((prev) => {
+      if (!prev) return { row: 0, col: 0 };
+      let { row, col } = prev;
+      if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
+      else if (e.key === 'ArrowDown') row = Math.min(rows.length - 1, row + 1);
+      else if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
+      else if (e.key === 'ArrowRight') col = Math.min(totalCols - 1, col + 1);
+      return { row, col };
+    });
+  };
+
+  // Keep selection within bounds when rows/activities change
+  useEffect(() => {
+    setSelectedCell((prev) => {
+      if (!prev) return prev;
+      const totalCols = activityCount * COLS_PER_ACT;
+      if (totalCols === 0 || rows.length === 0) return null;
+      return {
+        row: Math.min(prev.row, rows.length - 1),
+        col: Math.min(prev.col, totalCols - 1),
+      };
+    });
+  }, [activityCount, rows.length]);
+
+  // Scroll the selected cell into view within the scroll container
+  useEffect(() => {
+    if (!selectedCell) return;
+    const el = cellRefs.current[`${selectedCell.row}-${selectedCell.col}`];
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selectedCell]);
+
+  const isSelected = (row, col) => selectedCell?.row === row && selectedCell?.col === col;
+  const selectedStyle = (row, col) =>
+    isSelected(row, col) ? { outline: '2px solid #00aaff', outlineOffset: '-2px' } : null;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -191,6 +369,9 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
   const activeTimeKey = activeTime ? `${activeTime.rowIdx}-${activeTime.actIdx}` : null;
   const currentTimeValue = activeTimeKey ? cellData[activeTimeKey]?.[activeTime.field] : null;
 
+  const activeJustKey = activeJust ? `${activeJust.rowIdx}-${activeJust.actIdx}` : null;
+  const activeJustEntry = activeJustKey ? cellData[activeJustKey] : null;
+
   return (
     <Container component={Paper} fluid p={0} m={0}>
       <BlkLotModal
@@ -199,12 +380,25 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
         onConfirm={handleBlkLotConfirm}
         params={params}
       />
+      <ActivityModal
+        opened={activityOpen}
+        onClose={() => { setActivityOpen(false); setActiveActivity(null); }}
+        onConfirm={handleActivityConfirm}
+        params={params}
+      />
       <TimePickerModal
         opened={timeOpen}
         onClose={() => { setTimeOpen(false); setActiveTime(null); }}
         onConfirm={handleTimeConfirm}
         label={activeTime?.field === 'ti' ? 'Select Time In' : 'Select Time Out'}
         initialTime={currentTimeValue}
+      />
+      <JustificationModal
+        opened={justOpen}
+        onClose={() => { setJustOpen(false); setActiveJust(null); }}
+        onConfirm={handleJustificationConfirm}
+        initialValue={activeJustEntry?.justification ?? ''}
+        timeOut={activeJustEntry?.to}
       />
 
       <Group justify="space-between" mb={10}>
@@ -219,7 +413,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
             <ThemeIcon variant="transparent" c="blue">
               <InfoIcon size={16} />
             </ThemeIcon>
-            <Text fw={700} c="dimmed" size="xs">Long press BLK & LOT cell to remove an activity</Text>
+            <Text fw={700} c="dimmed" size="xs">Long press BLK & LOT cell to remove an activity · Click a cell, then use arrow keys to move and Enter to edit</Text>
           </Group>
         </Box>
         <Button size="xs" variant="light" color="teal" onClick={() => setActivityCount((c) => c + 1)}>
@@ -227,7 +421,12 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
         </Button>
       </Group>
 
-      <div ref={scrollContainerRef} style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 490px)`, position: 'relative' }}>
+      <div
+        ref={scrollContainerRef}
+        tabIndex={0}
+        onKeyDown={handleSheetKeyDown}
+        style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 490px)`, position: 'relative', outline: 'none' }}
+      >
         <Table
           withRowBorders
           withTableBorder
@@ -293,12 +492,25 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
                     });
                     const isHovered = (cellId) => hoveredKey === cellId;
 
+                    const blCol = actIdx * COLS_PER_ACT + 0;
+                    const tiCol = actIdx * COLS_PER_ACT + 1;
+                    const toCol = actIdx * COLS_PER_ACT + 2;
+                    const acCol = actIdx * COLS_PER_ACT + 3;
+                    const juCol = actIdx * COLS_PER_ACT + 4;
+
+                    const isOverlap = overlapKeys.has(key);
+                    const endMinutes = toMinutes(entry?.to);
+                    const exceeds16 = endMinutes != null && endMinutes > SIXTEEN;
+                    const hasJustification = !!entry?.justification?.trim();
+                    const needsJustification = exceeds16 && !hasJustification;
+
                     return (
                       <>
                         {/* Blk & Lot */}
                         <Table.Td
                           key={`bl-${key}`}
-                          onClick={() => handleBlkLotClickGuarded(rowIdx, actIdx)}
+                          ref={(el) => { cellRefs.current[`${rowIdx}-${blCol}`] = el; }}
+                          onClick={() => { setSelectedCell({ row: rowIdx, col: blCol }); handleBlkLotClickGuarded(rowIdx, actIdx); }}
                           onPointerDown={() => handleBlkLotPointerDown(rowIdx, actIdx)}
                           onPointerUp={handleBlkLotPointerUp}
                           onPointerLeave={handleBlkLotPointerUp}
@@ -311,6 +523,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
+                            ...selectedStyle(rowIdx, blCol),
                           }}
                         >
                           {entry?.block ? (
@@ -323,20 +536,22 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
                         {/* Time In */}
                         <Table.Td
                           key={`ti-${key}`}
-                          onClick={() => handleTimeClick(rowIdx, actIdx, 'ti')}
+                          ref={(el) => { cellRefs.current[`${rowIdx}-${tiCol}`] = el; }}
+                          onClick={() => { setSelectedCell({ row: rowIdx, col: tiCol }); handleTimeClick(rowIdx, actIdx, 'ti'); }}
                           {...hover(`ti-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 80,
                             textAlign: 'center',
-                            background: isHovered(`ti-${key}`) ? hoverBg : entry?.ti ? timeSet : bg,
+                            background: isOverlap ? overlapBg : isHovered(`ti-${key}`) ? hoverBg : entry?.ti ? timeSet : bg,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
+                            ...selectedStyle(rowIdx, tiCol),
                           }}
                         >
                           {entry?.ti ? (
-                            <Text size="xs" fw={500}>{entry.ti}</Text>
+                            <Text size="xs" fw={isOverlap ? 700 : 500} c={isOverlap ? overlapText : undefined}>{entry.ti}</Text>
                           ) : (
                             <Text size="xs" c="dimmed">—</Text>
                           )}
@@ -345,27 +560,102 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow }) => {
                         {/* Time Out */}
                         <Table.Td
                           key={`to-${key}`}
-                          onClick={() => handleTimeClick(rowIdx, actIdx, 'to')}
+                          ref={(el) => { cellRefs.current[`${rowIdx}-${toCol}`] = el; }}
+                          onClick={() => { setSelectedCell({ row: rowIdx, col: toCol }); handleTimeClick(rowIdx, actIdx, 'to'); }}
                           {...hover(`to-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 80,
                             textAlign: 'center',
-                            background: isHovered(`to-${key}`) ? hoverBg : entry?.to ? timeSet : bg,
+                            background: isOverlap ? overlapBg : isHovered(`to-${key}`) ? hoverBg : entry?.to ? timeSet : bg,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
+                            ...selectedStyle(rowIdx, toCol),
                           }}
                         >
                           {entry?.to ? (
-                            <Text size="xs" fw={500}>{entry.to}</Text>
+                            <Text size="xs" fw={isOverlap ? 700 : 500} c={isOverlap ? overlapText : undefined}>{entry.to}</Text>
                           ) : (
                             <Text size="xs" c="dimmed">—</Text>
                           )}
                         </Table.Td>
 
-                        <Table.Td key={`ac-${key}`} {...hover(`ac-${key}`)} style={{ background: isHovered(`ac-${key}`) ? hoverBg : bg, transition: 'background 0.15s' }}></Table.Td>
-                        <Table.Td key={`ju-${key}`} {...hover(`ju-${key}`)} style={{ background: isHovered(`ju-${key}`) ? hoverBg : bg, transition: 'background 0.15s' }}></Table.Td>
+                        {/* Activity */}
+                        <Table.Td
+                          key={`ac-${key}`}
+                          ref={(el) => { cellRefs.current[`${rowIdx}-${acCol}`] = el; }}
+                          onClick={() => { setSelectedCell({ row: rowIdx, col: acCol }); handleActivityClick(rowIdx, actIdx); }}
+                          {...hover(`ac-${key}`)}
+                          style={{
+                            cursor: 'pointer',
+                            minWidth: 80,
+                            textAlign: 'center',
+                            background: isHovered(`ac-${key}`) ? hoverBg : entry?.activityCode ? blkLotSet : blkLotEmpty,
+                            userSelect: 'none',
+                            whiteSpace: 'nowrap',
+                            transition: 'background 0.15s',
+                            ...selectedStyle(rowIdx, acCol),
+                          }}
+                        >
+                          {entry?.activityCode ? (
+                            <Tooltip
+                              withArrow
+                              multiline
+                              w={240}
+                              label={
+                                <Stack gap={2}>
+                                  <Text size="xs" fw={700}>{entry.activityCode} — {entry.activityDescription}</Text>
+                                  {entry.activityTitle && <Text size="xs">{entry.activityTitle}</Text>}
+                                  {entry.activityModel && <Text size="xs" c="dimmed">Model {entry.activityModel}</Text>}
+                                  {entry.constructionIndex && <Text size="xs" c="dimmed">{entry.constructionIndex}</Text>}
+                                </Stack>
+                              }
+                            >
+                              <Text size="xs" fw={600}>{entry.activityCode}</Text>
+                            </Tooltip>
+                          ) : (
+                            <Text size="xs" c="dimmed">— set —</Text>
+                          )}
+                        </Table.Td>
+                        {/* Justification */}
+                        <Table.Td
+                          key={`ju-${key}`}
+                          ref={(el) => { cellRefs.current[`${rowIdx}-${juCol}`] = el; }}
+                          onClick={() => { setSelectedCell({ row: rowIdx, col: juCol }); handleJustificationClick(rowIdx, actIdx); }}
+                          {...hover(`ju-${key}`)}
+                          style={{
+                            cursor: 'pointer',
+                            minWidth: 60,
+                            textAlign: 'center',
+                            userSelect: 'none',
+                            background: hasJustification
+                              ? justFilledBg
+                              : needsJustification
+                                ? justRequiredBg
+                                : isHovered(`ju-${key}`) ? hoverBg : bg,
+                            transition: 'background 0.15s',
+                            ...selectedStyle(rowIdx, juCol),
+                          }}
+                        >
+                          {hasJustification ? (
+                            // Once a justification is entered, show only red — reveal the
+                            // full text on hover.
+                            <Tooltip
+                              withArrow
+                              multiline
+                              w={260}
+                              label={<Text size="xs">{entry.justification}</Text>}
+                              position="top"
+                            >
+                              <Box style={{ width: '100%', minHeight: 16 }} />
+                            </Tooltip>
+                          ) : needsJustification ? (
+                            <Text size="xs" fw={700} c="red">Justification required</Text>
+                          ) : (
+                            <Text size="xs" c="dimmed">—</Text>
+                          )}
+                        </Table.Td>
                       </>
                     );
                   })}

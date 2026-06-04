@@ -10,6 +10,7 @@ import TaskEntriesOffline from './Pages/TaskEntriesOffline'
 import AdminPage from './Pages/Admin'
 import TaskEntriesList from './Pages/TaskEntriesOffline/TaskEntriesList'
 import TaskEntryForm from './Pages/TaskEntriesOffline/TaskEntryForm'
+import PasaPayroll from './Pages/PasaPayroll'
 
 const DASHBOARD_ROUTES = [
   {
@@ -35,6 +36,10 @@ const DASHBOARD_ROUTES = [
       {
         path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,
         Component: TaskEntries,
+      },
+      {
+        path: StringRoutes.management_pasapayroll,
+        Component: PasaPayroll
       }
     ]
   }

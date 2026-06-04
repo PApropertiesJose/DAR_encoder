@@ -1,48 +1,29 @@
-import { Modal, Stack, Text, Select, Loader, Button, Group } from '@mantine/core';
+import { Modal, Stack, Text, Select, Loader, Button, Group, ActionIcon, Tooltip } from '@mantine/core';
+import { RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import useFetchBlock from '~/hooks/Filters/useFetchBlockMutation';
-import useFetchLot from '~/hooks/Filters/useFetchLot';
+import useFetchUnits from '~/hooks/TaskEntries/useFetchUnits';
 
 const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
 
-  const { data: blockData, isLoading: blocksLoading } = useFetchBlock({ params });
-
-  const lotParams = useMemo(() => ({
-    ...params,
-    block: selectedBlock,
-  }), [params, selectedBlock]);
-
-  const { data: lotData, isLoading: lotsLoading } = useFetchLot({ params: lotParams });
+  const { data: units, loading, resync, syncing } = useFetchUnits(params);
 
   const blockOptions = useMemo(() => {
-    const items = blockData?.data ?? blockData ?? [];
-    if (!Array.isArray(items)) return [];
-    const seen = new Set();
-    return items.reduce((acc, b) => {
-      const value = b.code ?? b;
-      if (!seen.has(value)) {
-        seen.add(value);
-        acc.push({ value, label: String(value) });
-      }
-      return acc;
-    }, []);
-  }, [blockData]);
+    if (!Array.isArray(units)) return [];
+    return units.map((u) => ({ value: u.block, label: u.block }));
+  }, [units]);
 
-  const lotOptions = useMemo(() => {
-    const items = lotData?.data ?? lotData ?? [];
-    if (!Array.isArray(items)) return [];
-    const seen = new Set();
-    return items.reduce((acc, l) => {
-      const value = l.code ?? l;
-      if (!seen.has(value)) {
-        seen.add(value);
-        acc.push({ value, label: String(value) });
-      }
-      return acc;
-    }, []);
-  }, [lotData]);
+  const lots = useMemo(() => {
+    if (!selectedBlock || !Array.isArray(units)) return [];
+    const unit = units.find((u) => u.block === selectedBlock);
+    return unit?.lots ?? [];
+  }, [units, selectedBlock]);
+
+  const lotOptions = useMemo(
+    () => lots.map((l) => ({ value: l.itemNo, label: l.itemNo })),
+    [lots]
+  );
 
   const handleClose = () => {
     setSelectedBlock(null);
@@ -52,7 +33,9 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
 
   const handleConfirm = () => {
     if (!selectedBlock || !selectedLot) return;
-    onConfirm({ block: selectedBlock, lot: selectedLot });
+    const lotObject = lots.find((l) => l.itemNo === selectedLot);
+    const modelCode = lotObject?.modelCode ?? lotObject?.model ?? null;
+    onConfirm({ block: selectedBlock, lot: selectedLot, modelCode });
     setSelectedBlock(null);
     setSelectedLot(null);
   };
@@ -61,32 +44,45 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
     <Modal
       opened={opened}
       onClose={handleClose}
-      title={<Text fw={600}>Select Block &amp; Lot</Text>}
+      title={
+        <Group gap="xs">
+          <Text fw={600}>Select Block &amp; Lot</Text>
+          <Tooltip label="Resync offline data" withArrow>
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              loading={syncing}
+              onClick={resync}
+            >
+              <RefreshCw size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      }
       centered
       size="sm"
     >
       <Stack gap="md">
         <Select
           label="Block"
-          placeholder={blocksLoading ? 'Loading...' : 'Select block'}
+          placeholder={loading ? 'Loading...' : 'Select block'}
           data={blockOptions}
           value={selectedBlock}
           onChange={(val) => {
             setSelectedBlock(val);
             setSelectedLot(null);
           }}
-          rightSection={blocksLoading ? <Loader size={16} /> : undefined}
+          rightSection={loading ? <Loader size={16} /> : undefined}
           searchable
           clearable
         />
         <Select
           label="Lot"
-          placeholder={!selectedBlock ? 'Select a block first' : lotsLoading ? 'Loading...' : 'Select lot'}
+          placeholder={!selectedBlock ? 'Select a block first' : 'Select lot'}
           data={lotOptions}
           value={selectedLot}
           onChange={setSelectedLot}
           disabled={!selectedBlock}
-          rightSection={lotsLoading && selectedBlock ? <Loader size={16} /> : undefined}
           searchable
           clearable
         />

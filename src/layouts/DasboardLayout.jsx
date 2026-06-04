@@ -35,7 +35,8 @@ import {
   Building2,
   Book,
   MapPin,
-  CalendarCheck2
+  CalendarCheck2,
+  HardHat
 } from 'lucide-react';
 import StringRoutes from '~/Constants/StringRoutes';
 
@@ -237,6 +238,8 @@ const DashboardLayout = () => {
           <div className="nav-section-label">Entry</div>
           <ChildLink to={StringRoutes.project_selection} icon={NotebookPen}> Task Entries </ChildLink>
           <ChildLink to={StringRoutes.project_selection_task_offline} icon={CalendarCheck2}> Manual Task Entries </ChildLink>
+          <div className="nav-section-label">Management</div>
+          <ChildLink to={StringRoutes.management_pasapayroll} icon={HardHat}> Pasa Payroll </ChildLink>
           <Space h={16} />
         </ScrollArea>
 

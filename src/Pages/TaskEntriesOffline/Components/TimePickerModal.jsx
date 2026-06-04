@@ -7,7 +7,7 @@ const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
 const Spinner = ({ value, min, max, onChange }) => (
   <Stack gap={2} align="center">
-    <ActionIcon variant="subtle" onClick={() => onChange(value >= max ? min : value + 1)}>
+    <ActionIcon variant="subtle" tabIndex={-1} onClick={() => onChange(value >= max ? min : value + 1)}>
       <ChevronUp size={16} />
     </ActionIcon>
     <TextInput
@@ -28,14 +28,14 @@ const Spinner = ({ value, min, max, onChange }) => (
         },
       }}
     />
-    <ActionIcon variant="subtle" onClick={() => onChange(value <= min ? max : value - 1)}>
+    <ActionIcon variant="subtle" tabIndex={-1} onClick={() => onChange(value <= min ? max : value - 1)}>
       <ChevronDown size={16} />
     </ActionIcon>
   </Stack>
 );
 
 const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', initialTime = null }) => {
-  const [hour, setHour]     = useState(8);
+  const [hour, setHour] = useState(8);
   const [minute, setMinute] = useState(0);
   const [rawInput, setRawInput] = useState('');
   const [rawError, setRawError] = useState('');
@@ -86,7 +86,8 @@ const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', in
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = (e) => {
+    e.preventDefault();
     if (rawError) return;
     onConfirm(`${pad(hour)}:${pad(minute)}`);
   };
@@ -99,28 +100,30 @@ const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', in
       centered
       size="xs"
     >
-      <Stack align="center" gap="md">
-        <Group gap="xs" align="center">
-          <Spinner value={hour}   min={0} max={23} onChange={(v) => setHour(clamp(v, 0, 23))} />
-          <Text fw={700} size="xl">:</Text>
-          <Spinner value={minute} min={0} max={59} onChange={(v) => setMinute(clamp(v, 0, 59))} />
-        </Group>
+      <form onSubmit={handleConfirm}>
+        <Stack align="center" gap="md">
+          <Group gap="xs" align="center">
+            <Spinner value={hour} min={0} max={23} onChange={(v) => setHour(clamp(v, 0, 23))} />
+            <Text fw={700} size="xl">:</Text>
+            <Spinner value={minute} min={0} max={59} onChange={(v) => setMinute(clamp(v, 0, 59))} />
+          </Group>
 
-        <TextInput
-          label="Or type directly"
-          placeholder="14:30"
-          value={rawInput}
-          onChange={handleRawChange}
-          error={rawError}
-          w="100%"
-          styles={{ input: { textAlign: 'center', fontFamily: 'monospace' } }}
-        />
+          <TextInput
+            label="Or type directly"
+            placeholder="14:30"
+            value={rawInput}
+            onChange={handleRawChange}
+            error={rawError}
+            w="100%"
+            styles={{ input: { textAlign: 'center', fontFamily: 'monospace' } }}
+          />
 
-        <Group justify="flex-end" w="100%">
-          <Button variant="default" onClick={onClose}>Cancel</Button>
-          <Button disabled={!!rawError} onClick={handleConfirm}>Confirm</Button>
-        </Group>
-      </Stack>
+          <Group justify="flex-end" w="100%">
+            <Button variant="default" onClick={onClose}>Cancel</Button>
+            <Button disabled={!!rawError} type="submit">Confirm</Button>
+          </Group>
+        </Stack>
+      </form>
     </Modal>
   );
 };
