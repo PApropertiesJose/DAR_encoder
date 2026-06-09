@@ -17,19 +17,15 @@ import {
 } from '@mantine/core'
 import { Link } from 'react-router';
 import { ChevronRight, Users, NotebookPen, TriangleAlert, Folders } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import PasaPayrollList from './Components/PasaPayrollList';
 import useFetchAdminPosition from '~/hooks/Admins/useFetchAdminPositions';
 import ErrorElement from '~/components/ErrorElement';
 import PasaPayrollProvider, { usePasaPayrollContext } from './context';
 import { useForm } from '@mantine/form';
 import { useDebouncedCallback } from '@mantine/hooks';
-import useAddPasaPayrollMutation from '~/hooks/Admins/useAddPasaPayrollMutation';
-import { notifications } from '@mantine/notifications';
 
-const PasaPayrollPositions = memo(({
-  onChange
-}) => {
+const PasaPayrollPositions = memo(() => {
   const { data, isLoading, isError, isSuccess, error } = useFetchAdminPosition();
   const { handleChangeRate } = usePasaPayrollContext()
 
@@ -43,18 +39,12 @@ const PasaPayrollPositions = memo(({
     return <ErrorElement>{errorMessage}</ErrorElement>
   }
 
-  const _handleChangeRate = useCallback((v) => {
-    onChange(v);
-    handleChangeRate(v);
-  }, [handleChangeRate])
-
   return (
     <Select
       searchable
       label="Position"
       data={positions}
-      onChange={_handleChangeRate}
-      // onChange={handleChangeRate}
+      onChange={handleChangeRate}
       placeholder="Select a position"
       loading={isLoading}
     />
@@ -72,8 +62,7 @@ const PasaPayrollForm = memo(() => {
       overtimeRate: 0.00
     }
   })
-  const { adminRate, handleSearchPasaPayrollName, handleAddPasaPayroll } = usePasaPayrollContext();
-  const { mutate: addPasaPayrollMutate } = useAddPasaPayrollMutation();
+  const { adminRate, handleSearchPasaPayrollName } = usePasaPayrollContext();
 
   useEffect(() => {
     form.setValues({
@@ -86,44 +75,7 @@ const PasaPayrollForm = memo(() => {
     const name = val.target.value;
     form.setFieldValue('name', name);
     handleSearchPasaPayrollName(name);
-  }, 500)
-
-  const onManageSubmitPasaPayroll = () => {
-    let isValid = false; 
-
-    Object.keys(form.values).forEach(key => {
-      if(form.values[key] === null || !form.values[key]) {
-        isValid = true;
-      }
-    })
-
-    if(isValid) {
-      alert("Missing Inputs")
-      return;
-    }
-
-    onSubmitPasaPayrollAdmin();
-  }
-
-  const onSubmitPasaPayrollAdmin = () => {
-    addPasaPayrollMutate(form.values, {
-      onSuccess: (response) => {
-        notifications.show({
-          color: 'green',
-          title: "Successfully added pasa payroll",
-          message: "added"
-        })
-      },
-      onError: (error) => {
-        const errorMessage = error.response.data?.errorMessage ?? error.message;
-        notifications.show({
-          color: 'red',
-          title: "Something went wrong.",
-          message: errorMessage,
-        });
-      }
-    })
-  }
+  }, 500) 
 
   return (
     <Box mt={10}>
@@ -142,7 +94,7 @@ const PasaPayrollForm = memo(() => {
                 <Text fw={300} size="xs" c="dimmed">information details of the admin</Text>
               </Stack>
             </Group>
-            <Button onClick={onManageSubmitPasaPayroll} variant="light">
+            <Button variant="light">
               SAVE
             </Button>
           </Group>
@@ -166,9 +118,7 @@ const PasaPayrollForm = memo(() => {
               </Stack>
             </Grid.Col>
             <Grid.Col span={{ md: 3, base: 12 }}>
-              <PasaPayrollPositions
-                onChange={(v) => form.setFieldValue('position', v)}
-              />
+              <PasaPayrollPositions />
 
             </Grid.Col>
             <Grid.Col span={{ md: 1, base: 6 }}>
