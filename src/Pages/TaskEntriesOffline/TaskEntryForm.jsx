@@ -10,6 +10,7 @@ import { useIndexedDB } from '~/hooks/useIndexedDB';
 import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 import { getDBService } from '~/services/indexedDB';
 import TaskSheet from './Components/TaskSheet';
+import { buildSyncPayload } from './buildSyncPayload';
 
 
 const TaskEntryForm = memo(() => {
@@ -99,8 +100,15 @@ const TaskEntryForm = memo(() => {
   }, [addSheetRow, loadSheetRows, phaseCode, selectedDate, user?.username]);
 
   const [validateNonce, setValidateNonce] = useState(0);
-  const handleValidateEntries = () => {
+  const handleValidateEntries = async () => {
     setValidateNonce((n) => n + 1);
+    try {
+      const payload = await buildSyncPayload(params);
+      console.log('[Sync payload]', JSON.stringify(payload, null, 2));
+      console.log('[Sync payload object]', payload);
+    } catch (err) {
+      console.error('Failed to build sync payload:', err);
+    }
   }
 
   return (
