@@ -444,7 +444,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
               <Table.Th rowSpan={2} style={{ ...thStyle, minWidth: 200, position: 'sticky', top: 0, left: 0, background: BG, zIndex: 5 }}>NAME</Table.Th>
               {Array(activityCount).fill().map((_, i) => (
                 <Table.Th key={i} colSpan={5} style={{ ...thStyle, position: 'sticky', top: 0, background: BG, zIndex: 3 }}>
-                  Planned Activity {i + 1}
+                  Activity {i + 1}
                 </Table.Th>
               ))}
             </Table.Tr>

@@ -49,10 +49,10 @@ export async function buildSyncPayload({ phaseCode, date, username }) {
 
     return {
       adminWorker: row.adminName ?? null,
-      adminSystem: row.adminSystem ?? 'MANUAL',
+      adminSystem: row.system ?? 'MANUAL',
       adminId: String(row.adminId ?? ''),
-      hrisSystem: row.hrisSystem ?? null,
-      noahSystem: row.noahSystem ?? null,
+      hrisSystem: row.hrisSystem ?? "HRIS",
+      noahSystem: row.noahSystem ?? "NOAH_PAAPDC",
       phaseCode,
       dateTimeIn: date,          // yyyy-MM-dd
       status: 0,

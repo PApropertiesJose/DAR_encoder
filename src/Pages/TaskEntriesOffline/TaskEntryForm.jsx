@@ -92,6 +92,7 @@ const TaskEntryForm = memo(() => {
         date: selectedDate,
         username: user?.username,
         savedAt: new Date().toISOString(),
+        system: admin.system
       });
       await loadSheetRows();
     } catch (err) {
@@ -100,6 +101,7 @@ const TaskEntryForm = memo(() => {
   }, [addSheetRow, loadSheetRows, phaseCode, selectedDate, user?.username]);
 
   const [validateNonce, setValidateNonce] = useState(0);
+
   const handleValidateEntries = async () => {
     setValidateNonce((n) => n + 1);
     try {

@@ -74,7 +74,6 @@ const AutoCompleteAdmins = memo(({
       const db = getDBService('AppOfflineDB', DB_VERSION, DB_SCHEMA);
       // Overwrite cache with fresh results
       await db.clear('admins');
-      console.log(data);
       if (data?.data) {
         for (const item of data.data) {
           await db.put('admins', item);
