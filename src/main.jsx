@@ -4,7 +4,9 @@ import './index.css'
 import App from './App.jsx'
 import '@mantine/core/styles.css';
 import '@mantine/charts/styles.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import * as Sentry from "@sentry/react";
 //
 // Sentry.init({
@@ -18,14 +20,20 @@ const client = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10 * (60 * 1000),
+      gcTime: 24 * 60 * 60 * 1000, // keep cache for 24 hours so offline refresh works
+      networkMode: 'offlineFirst',  // serve cached data immediately, refetch in background when online
     }
   }
 })
 
+const persister = createSyncStoragePersister({
+  storage: window.localStorage,
+})
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <QueryClientProvider client={client} >
+    <PersistQueryClientProvider client={client} persistOptions={{ persister }}>
       <App />
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>,
 )

@@ -94,6 +94,7 @@ function mapCellToLine(cell, username) {
     projectedTimeOut: null,
     justificationForOt: cell?.justification ?? null,
     uploadedCode: cell?.modelCode ?? null,
+    rn: cell?.rn ?? null,   // present => already synced; proc UPDATEs instead of INSERTs
   };
 }
 

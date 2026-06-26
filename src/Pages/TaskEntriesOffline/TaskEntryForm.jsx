@@ -10,7 +10,12 @@ import { useIndexedDB } from '~/hooks/useIndexedDB';
 import { DB_SCHEMA, DB_VERSION } from '~/Constants/schemas';
 import { getDBService } from '~/services/indexedDB';
 import TaskSheet from './Components/TaskSheet';
+import ValidationModal from './Components/ValidationModal';
 import { buildSyncPayload } from './buildSyncPayload';
+import { applyValidationJustifications } from './applyValidationJustifications';
+import { detectActivityOverlaps } from './detectActivityOverlaps';
+import useValidateTaskEntriesMutation from '~/hooks/TaskEntries/useValidateTaskEntriesMutation';
+import { notifications } from '@mantine/notifications';
 
 
 const TaskEntryForm = memo(() => {
@@ -19,6 +24,7 @@ const TaskEntryForm = memo(() => {
   const { state } = useLocation();
   const [forceFetch, setForceFetch] = useState(false);
   const [sheetRows, setSheetRows] = useState([]);
+  const validateTaskEtnriesMutate = useValidateTaskEntriesMutation();
 
   const { add: addSheetRow } = useIndexedDB('sheetRows', { schema: DB_SCHEMA, version: DB_VERSION, autoInit: false });
 
@@ -101,15 +107,91 @@ const TaskEntryForm = memo(() => {
   }, [addSheetRow, loadSheetRows, phaseCode, selectedDate, user?.username]);
 
   const [validateNonce, setValidateNonce] = useState(0);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  // Validation result modal
+  const [validationOpen, setValidationOpen] = useState(false);
+  const [validationData, setValidationData] = useState([]);
 
   const handleValidateEntries = async () => {
     setValidateNonce((n) => n + 1);
     try {
+      // Block validation while any admin has overlapping activities — force a fix first.
+      const overlaps = await detectActivityOverlaps({ phaseCode, date: selectedDate, sheetRows });
+      if (overlaps.length > 0) {
+        notifications.show({
+          title: 'Overlapping activities found',
+          message: `Fix overlapping activities before validating: ${overlaps
+            .map((o) => `${o.adminName} (${o.count})`)
+            .join(', ')}.`,
+          color: 'red',
+          position: 'top-right',
+          autoClose: 6000,
+        });
+        return;
+      }
+
       const payload = await buildSyncPayload(params);
-      console.log('[Sync payload]', JSON.stringify(payload, null, 2));
-      console.log('[Sync payload object]', payload);
+      const response = await validateTaskEtnriesMutate.mutateAsync(payload);
+      // console.log('[Validate response]', response);
+      if (response?.status === false) {
+        notifications.show({
+          title: 'Validation failed',
+          message: response?.errorMessage ?? 'Unable to validate entries.',
+          color: 'red',
+          position: 'top-right',
+        });
+        return;
+      }
+      const responseData = response?.data ?? [];
+
+      // Persist rn values returned by the server back to taskSheetEntries immediately.
+      await applyValidationJustifications({
+        rows: responseData,
+        sheetRows,
+        phaseCode,
+        date: selectedDate,
+      });
+      setReloadNonce((n) => n + 1);
+
+      setValidationData(responseData);
+      setValidationOpen(true);
     } catch (err) {
-      console.error('Failed to build sync payload:', err);
+      console.error('Failed to validate entries:', err);
+      notifications.show({
+        title: 'Validation error',
+        message: err?.response?.data?.errorMessage ?? err?.message ?? 'Request failed.',
+        color: 'red',
+        position: 'top-right',
+      });
+    }
+  }
+
+  const handleValidationConfirm = async (rows) => {
+    try {
+      const applied = await applyValidationJustifications({
+        rows,
+        sheetRows,
+        phaseCode,
+        date: selectedDate,
+      });
+      setValidationOpen(false);
+      setValidationData([]);
+      setReloadNonce((n) => n + 1);
+      notifications.show({
+        title: 'Justifications applied',
+        message: `${applied} activity(ies) updated on the sheet.`,
+        color: 'teal',
+        position: 'top-right',
+      });
+    } catch (err) {
+      console.error('Failed to apply justifications:', err);
+      notifications.show({
+        title: 'Apply failed',
+        message: err?.message ?? 'Could not apply justifications to the sheet.',
+        color: 'red',
+        position: 'top-right',
+      });
     }
   }
 
@@ -124,8 +206,9 @@ const TaskEntryForm = memo(() => {
             {items}
           </Breadcrumbs>
         </Stack>
-        <Button 
+        <Button
           onClick={handleValidateEntries}
+          loading={validateTaskEtnriesMutate.isPending}
           leftSection={<TextSearch size={17} />}
           size="compact-md" variant="outline">
           <Text size="xs">
@@ -165,7 +248,14 @@ const TaskEntryForm = memo(() => {
       </Paper>
 
       <Space h={15} />
-      <TaskSheet params={params} rows={sheetRows} onDeleteRow={handleDeleteRow} validateNonce={validateNonce} />
+      <TaskSheet params={params} rows={sheetRows} onDeleteRow={handleDeleteRow} validateNonce={validateNonce} reloadNonce={reloadNonce} />
+
+      <ValidationModal
+        opened={validationOpen}
+        onClose={() => setValidationOpen(false)}
+        onConfirm={handleValidationConfirm}
+        data={validationData}
+      />
     </Container>
   );
 })

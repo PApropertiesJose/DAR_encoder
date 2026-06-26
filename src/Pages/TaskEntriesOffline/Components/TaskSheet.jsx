@@ -14,13 +14,16 @@ const BG = '#00595c';
 // 16:00 in minutes — activities ending past this require a justification.
 const SIXTEEN = 16 * 60;
 
+const isLandDevt = (constructionIndex) =>
+  (constructionIndex ?? '').toLowerCase().includes('land devt');
+
 const toMinutes = (t) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
   if (!m) return null;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 };
 
-const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) => {
+const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, reloadNonce = 0 }) => {
   const { colorScheme } = useMantineColorScheme();
   const dark = colorScheme === 'dark';
 
@@ -45,6 +48,15 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
       if (maxActIdx >= 0) setActivityCount(maxActIdx + 1);
     });
   }, [sheetKey]);
+
+  // Reload cell data after the validation modal writes justifications to IndexedDB.
+  useEffect(() => {
+    if (!reloadNonce) return; // skip initial mount
+    getDB().then((db) => db.get('taskSheetEntries', sheetKey)).then((saved) => {
+      setCellData(saved ?? {});
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadNonce]);
 
   const persistCellData = (next) => {
     getDB().then((db) =>
@@ -129,6 +141,16 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
 
   const handleBlkLotClickGuarded = (rowIdx, actIdx) => {
     if (longPressDidFire.current) return;
+    const entry = cellData[`${rowIdx}-${actIdx}`];
+    if (isLandDevt(entry?.constructionIndex)) {
+      notifications.show({
+        title: 'Land Devt activity',
+        message: 'Block & Lot is fixed at 000 / 0000 for Land Devt activities.',
+        color: 'blue',
+        position: 'top-right',
+      });
+      return;
+    }
     handleBlkLotClick(rowIdx, actIdx);
   };
 
@@ -151,7 +173,16 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
   const handleActivityConfirm = (activity) => {
     const key = `${activeActivity.rowIdx}-${activeActivity.actIdx}`;
     setCellData((prev) => {
-      const next = { ...prev, [key]: { ...prev[key], ...activity } };
+      const existing = prev[key] ?? {};
+      const activityChanged = existing.activityCode !== activity.activityCode;
+      const merged = { ...existing, ...activity };
+      if (activityChanged) delete merged.rn;
+      if (isLandDevt(activity.constructionIndex)) {
+        merged.block = '000';
+        merged.lot = '0000';
+        merged.modelCode = null;
+      }
+      const next = { ...prev, [key]: merged };
       persistCellData(next);
       return next;
     });
@@ -236,7 +267,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
     }
     const overlaps = overlapKeys.size;
     if (overlaps === 0 && missingJust === 0) {
-      notifications.show({ title: 'Validation passed', message: 'No overlapping activities or missing justifications.', color: 'teal', position: 'top-right' });
+      notifications.show({ title: 'Validation passed', message: 'No overlapping activities.', color: 'teal', position: 'top-right' });
     } else {
       notifications.show({
         title: 'Validation issues found',
@@ -425,7 +456,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
         ref={scrollContainerRef}
         tabIndex={0}
         onKeyDown={handleSheetKeyDown}
-        style={{ overflowX: 'auto', overflowY: 'auto', height: `calc(100vh - 490px)`, position: 'relative', outline: 'none' }}
+        style={{ overflowX: 'auto', overflowY: 'auto', height: 'max(260px, calc(100vh - 490px))', position: 'relative', outline: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         <Table
           withRowBorders
@@ -526,10 +557,13 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0 }) =
                             ...selectedStyle(rowIdx, blCol),
                           }}
                         >
-                          {entry?.block ? (
+                            {entry?.block ? (
                             <Text size="xs" fw={500}>{entry.block} / {entry.lot}</Text>
                           ) : (
                             <Text size="xs" c="dimmed">— set —</Text>
+                          )}
+                          {entry?.rn != null && Number(entry.rn) !== 0 && (
+                            <Text size="xs" c="teal" fw={600}>#{entry.rn}</Text>
                           )}
                         </Table.Td>
 

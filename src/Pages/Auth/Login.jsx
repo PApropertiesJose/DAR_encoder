@@ -9,10 +9,11 @@ import {
   Space,
   Checkbox,
   Divider,
-  Image
+  Image,
+  Paper,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { HomeIcon, LockIcon, Mail, PhoneCall } from "lucide-react";
+import { HomeIcon, LockIcon, Mail, PhoneCall, Download } from "lucide-react";
 import useLoginMutation from "~/hooks/Auth/useLoginMutation";
 import { notifications } from "@mantine/notifications";
 import { useState } from "react";
@@ -20,6 +21,7 @@ import useAuth from "~/hooks/Auth/useAuth";
 import { useNavigate } from "react-router";
 import StringRoutes from "~/constants/StringRoutes";
 import packageJson from '../../../package.json';
+import { usePWAInstall } from "~/hooks/usePWAInstall";
 // import Logo from '~/assets/DefaultImages/PaLogoCol.png';
 
 
@@ -27,6 +29,25 @@ const formWidth = {
   sm: '100%',
   md: 500,
 }
+
+const InstallBanner = () => {
+  const { canInstall, install } = usePWAInstall();
+  if (!canInstall) return null;
+
+  return (
+    <Paper withBorder p="sm" mb="lg" radius="md" style={{ width: '100%', maxWidth: 500, background: 'var(--mantine-color-blue-0)' }}>
+      <Group justify="space-between" wrap="nowrap">
+        <div>
+          <Text size="sm" fw={600}>Install DAR Encoder</Text>
+          <Text size="xs" c="dimmed">Add to your home screen for offline access</Text>
+        </div>
+        <Button size="xs" leftSection={<Download size={14} />} onClick={install}>
+          Install
+        </Button>
+      </Group>
+    </Paper>
+  );
+};
 
 const Login = () => {
   const form = useForm({
@@ -98,6 +119,7 @@ const Login = () => {
       <Flex direction={"column"} h={"100%"} align="center" justify="center">
         {/* <Image src={Logo} h={120} w="auto" /> */}
 
+        <InstallBanner />
         <form onSubmit={handleSubmit}>
           <Flex direction="column" align="center" >
             {/* <Group justify="center" align="center"> */}
