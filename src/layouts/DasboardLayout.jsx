@@ -12,11 +12,11 @@ import {
   Badge,
   Tooltip,
 } from '@mantine/core';
-import { useDisclosure, useElementSize, useHeadroom } from '@mantine/hooks';
+import { useDisclosure, useElementSize, useHeadroom, useMediaQuery } from '@mantine/hooks';
 import { NavLink, useLocation, Outlet, useNavigate, useNavigationType } from 'react-router';
 import '../index.css';
 import useAuth from '~/hooks/Auth/useAuth';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import packageJson from '../../package.json';
 import './index.css'
 import {
@@ -87,9 +87,12 @@ const NavSection = ({ label, icon: Icon, children, routes = [] }) => {
   );
 };
 
-const ChildLink = ({ to, icon: Icon, children }) => {
+const ChildLink = ({ to, icon: Icon, children, isHidden = false }) => {
   const location = useLocation();
   const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
+
+  if(isHidden) return null;
+
   return (
     <NavLink to={to} className={`nav-child-link${isActive ? ' active' : ''}`}>
       {Icon && <Icon size={13} />}
@@ -135,6 +138,10 @@ const DashboardLayout = () => {
   const [isDark, setIsDark] = useState(
     () => (localStorage.getItem('color-scheme') || 'dark') === 'dark'
   );
+
+  const access = useMemo(() => {
+    return user?.access ?? [];
+  }, []) 
 
   useEffect(() => {
     const handleScroll = () => {
@@ -237,9 +244,9 @@ const DashboardLayout = () => {
           </ChildLink>
           <div className="nav-section-label">Entry</div>
           <ChildLink to={StringRoutes.project_selection} icon={NotebookPen}> Task Entries </ChildLink>
-          <ChildLink to={StringRoutes.project_selection_task_offline} icon={CalendarCheck2}> Manual Task Entries </ChildLink>
+          <ChildLink isHidden={!access?.find((item) => item.description === 'Manual Task Entries')?.isSelected} to={StringRoutes.project_selection_task_offline} icon={CalendarCheck2}> Manual Task Entries </ChildLink>
           <div className="nav-section-label">Management</div>
-          <ChildLink to={StringRoutes.management_pasapayroll} icon={HardHat}> Pasa Payroll </ChildLink>
+          <ChildLink isHidden={!access?.find((item) => item.description === 'Pasa Payroll')?.isSelected} to={StringRoutes.management_pasapayroll} icon={HardHat}> Pasa Payroll </ChildLink>
           <Space h={16} />
         </ScrollArea>
 
