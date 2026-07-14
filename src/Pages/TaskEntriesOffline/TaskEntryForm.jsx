@@ -206,15 +206,17 @@ const TaskEntryForm = memo(() => {
             {items}
           </Breadcrumbs>
         </Stack>
-        <Button
-          onClick={handleValidateEntries}
-          loading={validateTaskEtnriesMutate.isPending}
-          leftSection={<TextSearch size={17} />}
-          size="compact-md" variant="outline">
-          <Text size="xs">
-            Validate Entries
-          </Text>
-        </Button>
+        <Group>
+          <Button
+            onClick={handleValidateEntries}
+            loading={validateTaskEtnriesMutate.isPending}
+            leftSection={<TextSearch size={17} />}
+            size="compact-md" variant="outline">
+            <Text size="xs">
+              Validate Entries
+            </Text>
+          </Button>
+        </Group>
       </Group>
       <Divider />
 

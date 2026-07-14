@@ -1,7 +1,8 @@
-import { Modal, Stack, Text, Select, Loader, Button, Group, ActionIcon, Tooltip } from '@mantine/core';
+import { Modal, Stack, Text, Button, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import useFetchUnits from '~/hooks/TaskEntries/useFetchUnits';
+import SearchablePicker from './SearchablePicker';
 
 const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -63,7 +64,7 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
       size="sm"
     >
       <Stack gap="md">
-        <Select
+        <SearchablePicker
           label="Block"
           placeholder={loading ? 'Loading...' : 'Select block'}
           data={blockOptions}
@@ -72,18 +73,16 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
             setSelectedBlock(val);
             setSelectedLot(null);
           }}
-          rightSection={loading ? <Loader size={16} /> : undefined}
-          searchable
+          loading={loading}
           clearable
         />
-        <Select
+        <SearchablePicker
           label="Lot"
           placeholder={!selectedBlock ? 'Select a block first' : 'Select lot'}
           data={lotOptions}
           value={selectedLot}
           onChange={setSelectedLot}
           disabled={!selectedBlock}
-          searchable
           clearable
         />
         <Group justify="flex-end" mt="sm">

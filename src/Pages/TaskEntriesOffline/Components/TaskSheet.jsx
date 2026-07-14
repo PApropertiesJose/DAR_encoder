@@ -5,8 +5,9 @@ import BlkLotModal from './BlkLotModal';
 import ActivityModal from './ActivityModal';
 import TimePickerModal from './TimePickerModal';
 import JustificationModal from './JustificationModal';
-import { InfoIcon, Trash2Icon } from 'lucide-react'
+import { InfoIcon, Sheet, Trash2Icon } from 'lucide-react'
 import { notifications } from '@mantine/notifications';
+import { exportTaskSheetToExcel } from './exportTaskSheetToExcel';
 
 const thStyle = { textAlign: 'center' };
 const BG = '#00595c';
@@ -397,6 +398,25 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
     }
   }, [debouncedQuery]);
 
+  const handleExportExcel = () => {
+    if (rows.length === 0 || activityCount === 0) {
+      notifications.show({
+        title: 'Nothing to export',
+        message: 'Add at least one admin and one planned activity first.',
+        color: 'yellow',
+        position: 'top-right',
+      });
+      return;
+    }
+    const fileName = exportTaskSheetToExcel({ rows, cellData, activityCount, params });
+    notifications.show({
+      title: 'Excel exported',
+      message: `Downloaded ${fileName}`,
+      color: 'teal',
+      position: 'top-right',
+    });
+  };
+
   const activeTimeKey = activeTime ? `${activeTime.rowIdx}-${activeTime.actIdx}` : null;
   const currentTimeValue = activeTimeKey ? cellData[activeTimeKey]?.[activeTime.field] : null;
 
@@ -447,9 +467,17 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
             <Text fw={700} c="dimmed" size="xs">Long press BLK & LOT cell to remove an activity · Click a cell, then use arrow keys to move and Enter to edit</Text>
           </Group>
         </Box>
-        <Button size="xs" variant="light" color="teal" onClick={() => setActivityCount((c) => c + 1)}>
-          + Add Planned Activity
-        </Button>
+        <Group>
+          <Button
+            leftSection={<Sheet size={16}/>}
+            onClick={handleExportExcel}
+          >
+            Export to Excel
+          </Button>
+          <Button size="xs" variant="light" color="teal" onClick={() => setActivityCount((c) => c + 1)}>
+            + Add Planned Activity
+          </Button>
+        </Group>
       </Group>
 
       <div
@@ -557,7 +585,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                             ...selectedStyle(rowIdx, blCol),
                           }}
                         >
-                            {entry?.block ? (
+                          {entry?.block ? (
                             <Text size="xs" fw={500}>{entry.block} / {entry.lot}</Text>
                           ) : (
                             <Text size="xs" c="dimmed">— set —</Text>

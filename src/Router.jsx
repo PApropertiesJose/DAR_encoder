@@ -11,6 +11,7 @@ import AdminPage from './Pages/Admin'
 import TaskEntriesList from './Pages/TaskEntriesOffline/TaskEntriesList'
 import TaskEntryForm from './Pages/TaskEntriesOffline/TaskEntryForm'
 import PasaPayroll from './Pages/PasaPayroll'
+import ManualDAR from './Pages/ManualDAR'
 
 const DASHBOARD_ROUTES = [
   {
@@ -36,6 +37,10 @@ const DASHBOARD_ROUTES = [
       {
         path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,
         Component: TaskEntries,
+      },
+      {
+        path: `${StringRoutes.files_manual_dar}`,
+        Component: ManualDAR
       },
       {
         path: StringRoutes.management_pasapayroll,

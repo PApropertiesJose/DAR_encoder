@@ -1,15 +1,13 @@
-import { Modal, Stack, Text, Select, Loader, Button, Group, ActionIcon, Tooltip, ScrollArea, Radio, Badge, Box, TextInput } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
-import { RefreshCw, Search } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { Modal, Stack, Text, Button, Group, ActionIcon, Tooltip, Badge } from '@mantine/core';
+import { RefreshCw, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import useFetchActivitiesPerPhase, { NULL_INDEX_KEY } from '~/hooks/TaskEntries/useFetchActivitiesPerPhase';
+import SearchablePicker from './SearchablePicker';
 
 
 const ActivityModal = ({ opened, onClose, onConfirm, params }) => {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [selectedCode, setSelectedCode] = useState(null);
-  const [search, setSearch] = useState('');
-  const [debounce] = useDebouncedValue(search, 500);
 
   const { data: groups, loading, resync, syncing } = useFetchActivitiesPerPhase(params);
 
@@ -29,20 +27,14 @@ const ActivityModal = ({ opened, onClose, onConfirm, params }) => {
     return group?.activities ?? [];
   }, [groups, selectedIndex]);
 
-
-  const filteredActivities = useMemo(() => {
-    const q = debounce.trim().toLowerCase();
-    if (!q) return activities;
-    return activities.filter((a) =>
-      [a.code, a.description, a.title, a.model]
-        .some((field) => String(field ?? '').toLowerCase().includes(q))
-    );
-  }, [activities, debounce]);
+  const activityOptions = useMemo(
+    () => activities.map((a) => ({ value: a.code, label: a.description, activity: a })),
+    [activities]
+  );
 
   const handleClose = () => {
     setSelectedIndex(null);
     setSelectedCode(null);
-    setSearch('');
     onClose();
   };
 
@@ -83,7 +75,7 @@ const ActivityModal = ({ opened, onClose, onConfirm, params }) => {
       size="md"
     >
       <Stack gap="md">
-        <Select
+        <SearchablePicker
           label="Construction Index"
           placeholder={loading ? 'Loading...' : 'Select construction index'}
           data={indexOptions}
@@ -91,62 +83,48 @@ const ActivityModal = ({ opened, onClose, onConfirm, params }) => {
           onChange={(val) => {
             setSelectedIndex(val);
             setSelectedCode(null);
-            setSearch('');
           }}
-          rightSection={loading ? <Loader size={16} /> : undefined}
-          searchable
+          loading={loading}
           clearable
         />
 
-        {selectedIndex && (
-          <Radio.Group
-            label="Activity"
-            value={selectedCode}
-            onChange={setSelectedCode}
-          >
-            <TextInput
-              mt="xs"
-              placeholder="Search activities by code, description, title…"
-              value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
-              leftSection={<Search size={14} />}
-            />
-            <ScrollArea h={280} mt="xs">
-              <Stack gap="xs">
-                {activities.length === 0 && (
-                  <Text size="sm" c="dimmed">No activities under this index.</Text>
-                )}
-                {activities.length > 0 && filteredActivities.length === 0 && (
-                  <Text size="sm" c="dimmed">No activities match “{search}”.</Text>
-                )}
-                {filteredActivities.map((a) => (
-                  <Box
-                    key={a.code}
-                    p="xs"
-                    style={{
-                      border: '1px solid var(--mantine-color-default-border)',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      background: selectedCode === a.code ? 'var(--mantine-color-teal-light)' : undefined,
-                    }}
-                    onClick={() => setSelectedCode(a.code)}
-                  >
-                    <Group justify="space-between" wrap="nowrap" align="flex-start">
-                      <div>
-                        <Group gap={6}>
-                          <Badge size="sm" variant="light" color="teal">{a.code}</Badge>
-                          <Text size="sm" fw={500}>{a.description}</Text>
-                        </Group>
-                        <Text size="xs" c="dimmed">{a.title}{a.model ? ` • Model ${a.model}` : ''}</Text>
-                      </div>
-                      <Radio value={a.code} />
-                    </Group>
-                  </Box>
-                ))}
-              </Stack>
-            </ScrollArea>
-          </Radio.Group>
-        )}
+        <SearchablePicker
+          label="Activity"
+          placeholder={!selectedIndex ? 'Select a construction index first' : 'Select activity'}
+          searchPlaceholder="Search by code, description, title…"
+          drawerTitle="Select Activity"
+          data={activityOptions}
+          value={selectedCode}
+          onChange={setSelectedCode}
+          disabled={!selectedIndex}
+          clearable
+          nothingFoundMessage="No activities under this index."
+          filterFn={(q, o) =>
+            [o.activity.code, o.activity.description, o.activity.title, o.activity.model]
+              .some((field) => String(field ?? '').toLowerCase().includes(q))
+          }
+          renderValue={(o) => (
+            <Group gap={6} wrap="nowrap">
+              <Badge size="sm" variant="light" color="teal">{o.activity.code}</Badge>
+              <Text size="sm" truncate>{o.activity.description}</Text>
+            </Group>
+          )}
+          renderOption={(o, { active }) => {
+            const a = o.activity;
+            return (
+              <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <div>
+                  <Group gap={6}>
+                    <Badge size="sm" variant="light" color="teal">{a.code}</Badge>
+                    <Text size="sm" fw={500}>{a.description}</Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">{a.title}{a.model ? ` • Model ${a.model}` : ''}</Text>
+                </div>
+                {active && <Check size={16} color="var(--mantine-color-teal-6)" />}
+              </Group>
+            );
+          }}
+        />
 
         <Group justify="flex-end" mt="sm">
           <Button variant="default" onClick={handleClose}>Cancel</Button>

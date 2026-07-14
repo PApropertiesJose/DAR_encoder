@@ -15,6 +15,8 @@ class StringRoutes {
   static project_selection_task_offline_list_form = '/offline/list/:phaseCode?/form'
   static project_selection_task_entries = '/phase/task-entries'
 
+  static files_manual_dar = '/files/manual-dar';
+
   static management_pasapayroll = '/pasapayroll'
 
 }

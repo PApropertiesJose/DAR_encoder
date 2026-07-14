@@ -245,6 +245,8 @@ const DashboardLayout = () => {
           <div className="nav-section-label">Entry</div>
           <ChildLink to={StringRoutes.project_selection} icon={NotebookPen}> Task Entries </ChildLink>
           <ChildLink isHidden={!access?.find((item) => item.description === 'Manual Task Entries')?.isSelected} to={StringRoutes.project_selection_task_offline} icon={CalendarCheck2}> Manual Task Entries </ChildLink>
+          <div className="nav-section-label">Files</div>
+          <ChildLink to={StringRoutes.files_manual_dar}>Manual DAR</ChildLink>
           <div className="nav-section-label">Management</div>
           <ChildLink isHidden={!access?.find((item) => item.description === 'Pasa Payroll')?.isSelected} to={StringRoutes.management_pasapayroll} icon={HardHat}> Pasa Payroll </ChildLink>
           <Space h={16} />
