@@ -17,6 +17,8 @@ class StringRoutes {
 
   static files_manual_dar = '/files/manual-dar';
 
+  static docs_offline_guide = '/docs/offline-mode-guide';
+
   static management_pasapayroll = '/pasapayroll'
 
 }

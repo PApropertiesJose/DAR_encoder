@@ -249,6 +249,8 @@ const DashboardLayout = () => {
           <ChildLink to={StringRoutes.files_manual_dar}>Manual DAR</ChildLink>
           <div className="nav-section-label">Management</div>
           <ChildLink isHidden={!access?.find((item) => item.description === 'Pasa Payroll')?.isSelected} to={StringRoutes.management_pasapayroll} icon={HardHat}> Pasa Payroll </ChildLink>
+          <div className="nav-section-label">Help</div>
+          <ChildLink to={StringRoutes.docs_offline_guide} icon={Book}> Offline Mode Guide </ChildLink>
           <Space h={16} />
         </ScrollArea>
 

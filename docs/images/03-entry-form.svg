@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="420" fill="#f8f9fa"/>
+  <rect x="20" y="20" width="860" height="380" rx="12" fill="#ffffff" stroke="#dee2e6"/>
+
+  <!-- Header -->
+  <text x="45" y="58" font-size="20" font-weight="600" fill="#212529">Task Entries</text>
+  <text x="45" y="77" font-size="11" font-family="Consolas, monospace"><tspan fill="#00595c">Phase</tspan><tspan fill="#adb5bd"> › </tspan><tspan fill="#00595c">Task Entries List</tspan><tspan fill="#adb5bd"> › </tspan><tspan fill="#868e96">Task Entries Form</tspan></text>
+
+  <!-- Validate Entries button -->
+  <rect x="700" y="45" width="150" height="30" rx="6" fill="none" stroke="#00595c" stroke-width="1.5"/>
+  <text x="775" y="64" font-size="11" font-weight="600" fill="#00595c" text-anchor="middle">🔍  Validate Entries</text>
+
+  <line x1="45" y1="92" x2="855" y2="92" stroke="#dee2e6"/>
+
+  <!-- Phase header -->
+  <text x="45" y="122" font-size="13" font-weight="700" fill="#00595c">PH-0012 — Northfield Residences Phase 2</text>
+  <text x="45" y="140" font-size="11" fill="#868e96">Entry date: 2026-07-15</text>
+  <line x1="45" y1="152" x2="855" y2="152" stroke="#dee2e6"/>
+
+  <!-- Search Admin -->
+  <text x="45" y="178" font-size="12" font-weight="500" fill="#212529">Search Admin</text>
+  <rect x="45" y="186" width="300" height="34" rx="6" fill="#ffffff" stroke="#00595c"/>
+  <text x="57" y="207" font-size="12" fill="#adb5bd">Input name of the Admin</text>
+  <text x="328" y="208" font-size="10" fill="#868e96">▾</text>
+
+  <!-- SYNC ADMINS button -->
+  <rect x="360" y="186" width="140" height="34" rx="6" fill="none" stroke="#00595c" stroke-width="1.5"/>
+  <text x="430" y="207" font-size="11" font-weight="600" fill="#00595c" text-anchor="middle">⟳  SYNC ADMINS</text>
+
+  <!-- Dropdown -->
+  <rect x="45" y="224" width="300" height="150" rx="6" fill="#ffffff" stroke="#dee2e6"/>
+  <rect x="53" y="232" width="284" height="26" rx="4" fill="#f1f3f5"/>
+  <text x="62" y="249" font-size="11" fill="#adb5bd">Search by name...</text>
+
+  <!-- Option 1 -->
+  <circle cx="72" cy="284" r="13" fill="#e6f2f2"/>
+  <text x="72" y="288" font-size="9" font-weight="700" fill="#00595c" text-anchor="middle">JD</text>
+  <text x="94" y="281" font-size="11" fill="#212529">Juan Dela Cruz</text>
+  <text x="94" y="294" font-size="9" font-family="Consolas, monospace" fill="#868e96">MASON</text>
+  <rect x="270" y="274" width="62" height="16" rx="8" fill="none" stroke="#00595c"/>
+  <text x="301" y="285" font-size="8" fill="#00595c" text-anchor="middle">GROUP A</text>
+
+  <!-- Option 2 -->
+  <circle cx="72" cy="322" r="13" fill="#e6f2f2"/>
+  <text x="72" y="326" font-size="9" font-weight="700" fill="#00595c" text-anchor="middle">MR</text>
+  <text x="94" y="319" font-size="11" fill="#212529">Maria Reyes</text>
+  <text x="94" y="332" font-size="9" font-family="Consolas, monospace" fill="#868e96">CARPENTER</text>
+
+  <!-- Option 3 (disabled/already added) -->
+  <circle cx="72" cy="358" r="13" fill="#f1f3f5"/>
+  <text x="72" y="362" font-size="9" font-weight="700" fill="#adb5bd" text-anchor="middle">PS</text>
+  <text x="94" y="355" font-size="11" fill="#adb5bd">Pedro Santos  (already on sheet)</text>
+  <text x="94" y="368" font-size="9" font-family="Consolas, monospace" fill="#ced4da">LABORER</text>
+
+  <!-- Callout -->
+  <rect x="520" y="240" width="335" height="120" rx="8" fill="#e6f2f2"/>
+  <text x="537" y="266" font-size="12" font-weight="700" fill="#00595c">How this works</text>
+  <text x="537" y="288" font-size="11" fill="#00595c">1. Click SYNC ADMINS once while online to</text>
+  <text x="551" y="303" font-size="11" fill="#00595c">cache the admin list for this phase.</text>
+  <text x="537" y="323" font-size="11" fill="#00595c">2. Pick an admin — a row is added to the</text>
+  <text x="551" y="338" font-size="11" fill="#00595c">task sheet below. Repeat per admin.</text>
+</svg>

@@ -1,7 +1,7 @@
 {
   "name": "DAR",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -35,11 +35,13 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",
+    "react-markdown": "^10.1.0",
     "react-router": "^7.5.3",
     "react-transition-group": "^4.4.5",
     "react-window": "^2.2.7",
     "react-zoom-pan-pinch": "^3.7.0",
     "recharts": "^3.2.1",
+    "remark-gfm": "^4.0.1",
     "sql.js": "^1.14.1",
     "vite-jsconfig-paths": "^2.0.1",
     "wellknown": "^0.5.0",

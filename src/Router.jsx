@@ -12,6 +12,7 @@ import TaskEntriesList from './Pages/TaskEntriesOffline/TaskEntriesList'
 import TaskEntryForm from './Pages/TaskEntriesOffline/TaskEntryForm'
 import PasaPayroll from './Pages/PasaPayroll'
 import ManualDAR from './Pages/ManualDAR'
+import OfflineGuide from './Pages/Docs/OfflineGuide'
 
 const DASHBOARD_ROUTES = [
   {
@@ -41,6 +42,10 @@ const DASHBOARD_ROUTES = [
       {
         path: `${StringRoutes.files_manual_dar}`,
         Component: ManualDAR
+      },
+      {
+        path: StringRoutes.docs_offline_guide,
+        Component: OfflineGuide
       },
       {
         path: StringRoutes.management_pasapayroll,
