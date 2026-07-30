@@ -74,6 +74,7 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
             setSelectedLot(null);
           }}
           loading={loading}
+          searchInputMode="numeric"
           clearable
         />
         <SearchablePicker
@@ -83,6 +84,7 @@ const BlkLotModal = ({ opened, onClose, onConfirm, params }) => {
           value={selectedLot}
           onChange={setSelectedLot}
           disabled={!selectedBlock}
+          searchInputMode="numeric"
           clearable
         />
         <Group justify="flex-end" mt="sm">

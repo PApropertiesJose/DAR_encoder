@@ -5,34 +5,57 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 const pad = (n) => String(n).padStart(2, '0');
 const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
-const Spinner = ({ value, min, max, onChange }) => (
-  <Stack gap={2} align="center">
-    <ActionIcon variant="subtle" tabIndex={-1} onClick={() => onChange(value >= max ? min : value + 1)}>
-      <ChevronUp size={16} />
-    </ActionIcon>
-    <TextInput
-      value={pad(value)}
-      onChange={(e) => {
-        const parsed = parseInt(e.target.value);
-        if (!isNaN(parsed)) onChange(clamp(parsed, min, max));
-      }}
-      onFocus={(e) => e.target.select()}
-      styles={{
-        input: {
-          width: 48,
-          textAlign: 'center',
-          fontFamily: 'monospace',
-          fontWeight: 700,
-          fontSize: 20,
-          padding: 0,
-        },
-      }}
-    />
-    <ActionIcon variant="subtle" tabIndex={-1} onClick={() => onChange(value <= min ? max : value - 1)}>
-      <ChevronDown size={16} />
-    </ActionIcon>
-  </Stack>
-);
+const Spinner = ({ value, min, max, onChange }) => {
+  // Hold the raw text while typing. Padding on every keystroke turns a
+  // half-typed "1" into "01", which then swallows the second digit.
+  const [draft, setDraft] = useState(null);
+
+  const handleChange = (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+    setDraft(digits);
+    const parsed = parseInt(digits);
+    if (!isNaN(parsed) && parsed >= min && parsed <= max) onChange(parsed);
+  };
+
+  // Out-of-range or empty entries settle back to something legal on exit.
+  const handleBlur = () => {
+    if (draft) onChange(clamp(parseInt(draft), min, max));
+    setDraft(null);
+  };
+
+  const step = (next) => {
+    setDraft(null);
+    onChange(next);
+  };
+
+  return (
+    <Stack gap={2} align="center">
+      <ActionIcon variant="subtle" tabIndex={-1} onClick={() => step(value >= max ? min : value + 1)}>
+        <ChevronUp size={16} />
+      </ActionIcon>
+      <TextInput
+        value={draft ?? pad(value)}
+        onChange={handleChange}
+        onFocus={(e) => e.target.select()}
+        onBlur={handleBlur}
+        inputMode="numeric"
+        styles={{
+          input: {
+            width: 48,
+            textAlign: 'center',
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 20,
+            padding: 0,
+          },
+        }}
+      />
+      <ActionIcon variant="subtle" tabIndex={-1} onClick={() => step(value <= min ? max : value - 1)}>
+        <ChevronDown size={16} />
+      </ActionIcon>
+    </Stack>
+  );
+};
 
 const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', initialTime = null }) => {
   const [hour, setHour] = useState(8);
@@ -73,8 +96,15 @@ const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', in
     return { h, m };
   };
 
+  // The numeric keypad has no colon key, so keep only digits and place the
+  // separator ourselves: "1430" types out as "14:30".
+  const formatRaw = (val) => {
+    const digits = val.replace(/\D/g, '').slice(0, 4);
+    return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+  };
+
   const handleRawChange = (e) => {
-    const val = e.target.value;
+    const val = formatRaw(e.target.value);
     setRawInput(val);
     const parsed = parseRaw(val);
     if (parsed) {
@@ -82,7 +112,7 @@ const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', in
       setMinute(parsed.m);
       setRawError('');
     } else {
-      setRawError('Use format: HH:MM  (00:00 – 23:59)');
+      setRawError('Enter 4 digits: HHMM  (0000 – 2359)');
     }
   };
 
@@ -110,10 +140,12 @@ const TimePickerModal = ({ opened, onClose, onConfirm, label = 'Select Time', in
 
           <TextInput
             label="Or type directly"
-            placeholder="14:30"
+            placeholder="1430"
             value={rawInput}
             onChange={handleRawChange}
+            onFocus={(e) => e.target.select()}
             error={rawError}
+            inputMode="numeric"
             w="100%"
             styles={{ input: { textAlign: 'center', fontFamily: 'monospace' } }}
           />

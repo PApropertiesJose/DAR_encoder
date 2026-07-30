@@ -35,6 +35,8 @@ const SearchablePicker = ({
   searchable = true,
   nothingFoundMessage = 'Nothing found',
   drawerTitle,
+  // 'numeric' shows the digits-only virtual keyboard for number-like options.
+  searchInputMode,
   // Optional customizers for richer items:
   renderOption, // (option, { active }) => node — custom row body
   renderValue, // (option) => node — custom trigger label
@@ -126,6 +128,7 @@ const SearchablePicker = ({
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
             leftSection={<Search size={14} />}
+            inputMode={searchInputMode}
             mb="sm"
           />
         )}
