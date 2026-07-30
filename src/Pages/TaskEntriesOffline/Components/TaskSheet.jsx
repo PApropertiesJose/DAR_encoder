@@ -5,12 +5,24 @@ import BlkLotModal from './BlkLotModal';
 import ActivityModal from './ActivityModal';
 import TimePickerModal from './TimePickerModal';
 import JustificationModal from './JustificationModal';
-import { InfoIcon, Sheet, Trash2Icon } from 'lucide-react'
+import { ClipboardPasteIcon, CopyIcon, InfoIcon, Sheet, SquareDashedMousePointerIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { notifications } from '@mantine/notifications';
 import { exportTaskSheetToExcel } from './exportTaskSheetToExcel';
+import './TaskSheet.css';
 
 const thStyle = { textAlign: 'center' };
 const BG = '#00595c';
+
+// Long-press-to-delete on a Blk & Lot cell. A press shorter than TAP_MS is a
+// tap and opens the editor; past that the progress ring appears and the gesture
+// is a hold, which either completes at LONG_PRESS_MS or aborts on release.
+const TAP_MS = 200;
+const LONG_PRESS_MS = 800;
+// Ring fills over the time that's actually left once it becomes visible.
+const RING_MS = LONG_PRESS_MS - TAP_MS;
+// How long after a hold ends a click stays swallowed — long enough to cover the
+// pointerup -> click gap, short enough to expire before any later interaction.
+const CLICK_GRACE_MS = 400;
 
 // 16:00 in minutes — activities ending past this require a justification.
 const SIXTEEN = 16 * 60;
@@ -23,6 +35,75 @@ const toMinutes = (t) => {
   if (!m) return null;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 };
+
+// Columns are flattened: each activity contributes these 5, in this order.
+// `read` pulls the copyable payload out of a cell, `keys` are the entry fields
+// a paste overwrites, and `text` is the plain-text form written to the system
+// clipboard. `rn` is deliberately never copied — it identifies an already-synced
+// server line and must stay with the cell it was issued for.
+const FIELDS = [
+  {
+    label: 'Blk & Lot',
+    keys: ['block', 'lot', 'modelCode'],
+    read: (e) => (e?.block ? { block: e.block, lot: e.lot ?? null, modelCode: e.modelCode ?? null } : null),
+    text: (e) => (e?.block ? `${e.block} / ${e.lot ?? ''}` : ''),
+  },
+  {
+    label: 'Time In',
+    keys: ['ti'],
+    read: (e) => (e?.ti ? { ti: e.ti } : null),
+    text: (e) => e?.ti ?? '',
+  },
+  {
+    label: 'Time Out',
+    keys: ['to'],
+    read: (e) => (e?.to ? { to: e.to } : null),
+    text: (e) => e?.to ?? '',
+  },
+  {
+    label: 'Activity',
+    keys: ['activityCode', 'activityDescription', 'activityTitle', 'activityModel', 'constructionIndex'],
+    read: (e) => (e?.activityCode ? {
+      activityCode: e.activityCode,
+      activityDescription: e.activityDescription ?? null,
+      activityTitle: e.activityTitle ?? null,
+      activityModel: e.activityModel ?? null,
+      constructionIndex: e.constructionIndex ?? null,
+    } : null),
+    text: (e) => e?.activityCode ?? '',
+  },
+  {
+    label: 'Justification',
+    keys: ['justification'],
+    read: (e) => (e?.justification?.trim() ? { justification: e.justification } : null),
+    text: (e) => e?.justification ?? '',
+  },
+];
+
+const COLS_PER_ACT = FIELDS.length;
+
+/** Overwrites one field group on a cell. A null value clears it. */
+const applyField = (entry, kind, value) => {
+  const next = { ...entry };
+  for (const k of FIELDS[kind].keys) delete next[k];
+  return value ? { ...next, ...value } : next;
+};
+
+/** Re-applies the sheet's invariants after a paste has merged fields in. */
+const normalizeEntry = (entry, before) => {
+  const next = { ...entry };
+  if (isLandDevt(next.constructionIndex)) {
+    next.block = '000';
+    next.lot = '0000';
+    next.modelCode = null;
+  }
+  // Same rule as picking a new activity by hand: a different task means the
+  // synced line no longer applies.
+  if (next.activityCode !== before?.activityCode) delete next.rn;
+  return next;
+};
+
+const isEmptyEntry = (entry) => FIELDS.every((f) => f.read(entry) == null);
 
 const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, reloadNonce = 0 }) => {
   const { colorScheme } = useMantineColorScheme();
@@ -93,6 +174,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
       return next;
     });
     setActivityCount((c) => c - 1);
+    setClipboard(null); // its origin marker points at columns that just shifted
   };
 
   const deleteAdminRow = (rowIdx) => {
@@ -107,6 +189,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
       persistCellData(next);
       return next;
     });
+    setClipboard(null); // its origin marker points at rows that just shifted
     onDeleteRow?.(rows[rowIdx]);
     notifications.show({ title: 'Admin removed from sheet', color: 'red', position: 'top-right' });
   };
@@ -125,23 +208,56 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
     });
   };
 
+  const ringTimerRef = useRef(null);
   const longPressTimerRef = useRef(null);
-  const longPressDidFire = useRef(false);
+  const pressStartRef = useRef(0);
+  // Clicks arriving before this timestamp are swallowed. A timestamp rather
+  // than a flag so an abort that never produces a click (pointer dragged off
+  // the cell) can't leave the next tap permanently blocked.
+  const suppressClickUntilRef = useRef(0);
+  // Cell currently being held down, so only that one draws a progress ring.
+  const [pressedKey, setPressedKey] = useState(null);
 
-  const handleBlkLotPointerDown = (rowIdx, actIdx) => {
-    longPressDidFire.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      longPressDidFire.current = true;
-      deleteAdminTask(rowIdx, actIdx);
-    }, 600);
-  };
-
-  const handleBlkLotPointerUp = () => {
+  const clearPressTimers = () => {
+    clearTimeout(ringTimerRef.current);
     clearTimeout(longPressTimerRef.current);
   };
 
+  const handleBlkLotPointerDown = (rowIdx, actIdx) => {
+    pressStartRef.current = 0;
+    // While picking cells, a lingering finger must never delete one.
+    if (selectMode) return;
+    // Nothing to delete on an empty cell — don't promise an action that
+    // won't happen. A tap still opens the editor.
+    if (!cellData[`${rowIdx}-${actIdx}`]) return;
+    pressStartRef.current = Date.now();
+    // The ring waits out the tap window, so a quick tap opens the editor with
+    // no flash of red — and anything that shows a ring is a hold, not a tap.
+    ringTimerRef.current = setTimeout(() => setPressedKey(`${rowIdx}-${actIdx}`), TAP_MS);
+    longPressTimerRef.current = setTimeout(() => {
+      pressStartRef.current = 0;
+      suppressClickUntilRef.current = Date.now() + CLICK_GRACE_MS;
+      setPressedKey(null);
+      deleteAdminTask(rowIdx, actIdx);
+    }, LONG_PRESS_MS);
+  };
+
+  const handleBlkLotPointerUp = () => {
+    clearPressTimers();
+    // Released after the ring appeared: the user aborted a delete, so don't
+    // fall through to opening the editor.
+    if (pressStartRef.current && Date.now() - pressStartRef.current >= TAP_MS) {
+      suppressClickUntilRef.current = Date.now() + CLICK_GRACE_MS;
+    }
+    pressStartRef.current = 0;
+    setPressedKey(null);
+  };
+
+  // Don't let a press that outlives the sheet fire a delete.
+  useEffect(() => clearPressTimers, []);
+
   const handleBlkLotClickGuarded = (rowIdx, actIdx) => {
-    if (longPressDidFire.current) return;
+    if (Date.now() < suppressClickUntilRef.current) return;
     const entry = cellData[`${rowIdx}-${actIdx}`];
     if (isLandDevt(entry?.constructionIndex)) {
       notifications.show({
@@ -311,9 +427,147 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
 
   // Keyboard cell navigation. Columns are flattened: each activity has 5
   // columns (Blk&Lot, TimeIn, TimeOut, Activity, Justification).
-  const COLS_PER_ACT = 5;
-  const [selectedCell, setSelectedCell] = useState(null); // { row, col }
+  const [selectedCell, setSelectedCell] = useState(null); // anchor { row, col }
+  const [selectionEnd, setSelectionEnd] = useState(null); // opposite corner, null = single cell
+  const [clipboard, setClipboard] = useState(null);       // { kind, cells, origin }
+  const [selectMode, setSelectMode] = useState(false);    // touch: tap selects instead of editing
   const cellRefs = useRef({});
+
+  // The selected block, normalised to top-left / bottom-right.
+  const selectionRect = () => {
+    if (!selectedCell) return null;
+    const end = selectionEnd ?? selectedCell;
+    return {
+      row0: Math.min(selectedCell.row, end.row),
+      row1: Math.max(selectedCell.row, end.row),
+      col0: Math.min(selectedCell.col, end.col),
+      col1: Math.max(selectedCell.col, end.col),
+    };
+  };
+
+  const inRect = (rect, row, col) =>
+    !!rect && row >= rect.row0 && row <= rect.row1 && col >= rect.col0 && col <= rect.col1;
+
+  const focusSheet = () => scrollContainerRef.current?.focus({ preventScroll: true });
+
+  const copySelection = () => {
+    const rect = selectionRect();
+    if (!rect) {
+      notifications.show({ title: 'Nothing selected', message: 'Click a cell first, then copy.', color: 'yellow', position: 'top-right' });
+      return;
+    }
+    const cells = [];
+    const lines = [];
+    for (let row = rect.row0; row <= rect.row1; row++) {
+      const values = [];
+      const texts = [];
+      for (let col = rect.col0; col <= rect.col1; col++) {
+        const entry = cellData[`${row}-${Math.floor(col / COLS_PER_ACT)}`];
+        const field = FIELDS[col % COLS_PER_ACT];
+        values.push(field.read(entry));
+        texts.push(field.text(entry));
+      }
+      cells.push(values);
+      lines.push(texts.join('\t'));
+    }
+    setClipboard({ kind: rect.col0 % COLS_PER_ACT, cells, origin: rect });
+    // Mirror to the OS clipboard so the same selection can be pasted into Excel.
+    // Unavailable over plain http — the in-sheet clipboard above still works.
+    navigator.clipboard?.writeText(lines.join('\n'))?.catch(() => { });
+    // In Select mode a tap extends the block, so release it — otherwise the
+    // tap on the paste target would stretch the copied range instead.
+    if (selectMode) clearSelection();
+    const count = cells.length * cells[0].length;
+    notifications.show({
+      title: `Copied ${count} cell${count > 1 ? 's' : ''}`,
+      message: selectMode
+        ? 'Tap the target cell (same column type), then Paste.'
+        : 'Select a target cell in the same column type, then paste.',
+      color: 'teal',
+      position: 'top-right',
+    });
+  };
+
+  const pasteToSelection = () => {
+    if (!clipboard) {
+      notifications.show({ title: 'Clipboard is empty', message: 'Copy a cell first.', color: 'yellow', position: 'top-right' });
+      return;
+    }
+    const rect = selectionRect();
+    if (!rect) {
+      notifications.show({ title: 'Nothing selected', message: 'Click the cell you want to paste into.', color: 'yellow', position: 'top-right' });
+      return;
+    }
+    const sourceLabel = FIELDS[clipboard.kind].label;
+    if (rect.col0 % COLS_PER_ACT !== clipboard.kind) {
+      notifications.show({
+        title: 'Column mismatch',
+        message: `You copied a ${sourceLabel} cell — paste into a ${sourceLabel} column.`,
+        color: 'yellow',
+        position: 'top-right',
+      });
+      return;
+    }
+
+    // Repeat the copied block to fill the selection when it divides evenly
+    // (copy one cell, select ten rows, fill them all); otherwise paste once.
+    const clipH = clipboard.cells.length;
+    const clipW = clipboard.cells[0].length;
+    const selH = rect.row1 - rect.row0 + 1;
+    const selW = rect.col1 - rect.col0 + 1;
+    const spanH = selH > clipH && selH % clipH === 0 ? selH : clipH;
+    const spanW = selW > clipW && selW % clipW === 0 ? selW : clipW;
+
+    // Collect per-cell field updates first so each entry is merged once.
+    const totalCols = activityCount * COLS_PER_ACT;
+    const updates = new Map();
+    for (let r = 0; r < spanH; r++) {
+      const row = rect.row0 + r;
+      if (row >= rows.length) break;
+      for (let c = 0; c < spanW; c++) {
+        const col = rect.col0 + c;
+        if (col >= totalCols) break;
+        const key = `${row}-${Math.floor(col / COLS_PER_ACT)}`;
+        if (!updates.has(key)) updates.set(key, {});
+        updates.get(key)[col % COLS_PER_ACT] = clipboard.cells[r % clipH][c % clipW];
+      }
+    }
+
+    const next = { ...cellData };
+    let pasted = 0;
+    let lockedBlkLot = 0;
+    for (const [key, fields] of updates) {
+      const before = cellData[key];
+      let entry = { ...(before ?? {}) };
+      for (const [kind, value] of Object.entries(fields)) {
+        const k = Number(kind);
+        // Land Devt cells hold a fixed 000 / 0000 — leave them alone unless the
+        // same paste is also replacing the activity.
+        if (k === 0 && fields[3] === undefined && isLandDevt(entry.constructionIndex)) {
+          lockedBlkLot++;
+          continue;
+        }
+        entry = applyField(entry, k, value);
+        pasted++;
+      }
+      entry = normalizeEntry(entry, before);
+      if (isEmptyEntry(entry)) delete next[key];
+      else next[key] = entry;
+    }
+
+    setCellData(next);
+    persistCellData(next);
+    // Same reason as after a copy: leave the next tap free to pick a new target.
+    if (selectMode) clearSelection();
+    notifications.show({
+      title: pasted > 0 ? `Pasted ${pasted} cell${pasted > 1 ? 's' : ''}` : 'Nothing pasted',
+      message: lockedBlkLot > 0
+        ? `${lockedBlkLot} Land Devt cell(s) kept their fixed 000 / 0000.`
+        : undefined,
+      color: pasted > 0 ? 'teal' : 'yellow',
+      position: 'top-right',
+    });
+  };
 
   const activateCell = ({ row, col }) => {
     const actIdx = Math.floor(col / COLS_PER_ACT);
@@ -329,6 +583,26 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
     const totalCols = activityCount * COLS_PER_ACT;
     if (totalCols === 0 || rows.length === 0) return;
 
+    if (e.ctrlKey || e.metaKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        e.preventDefault();
+        copySelection();
+      } else if (key === 'v') {
+        e.preventDefault();
+        pasteToSelection();
+      }
+      return;
+    }
+
+    // Collapse the block and drop the copy marker, but keep what was copied so
+    // it can still be pasted.
+    if (e.key === 'Escape') {
+      setSelectionEnd(null);
+      setClipboard((prev) => (prev ? { ...prev, origin: null } : null));
+      return;
+    }
+
     if (e.key === 'Enter') {
       if (selectedCell) {
         e.preventDefault();
@@ -340,40 +614,106 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
     e.preventDefault();
 
-    setSelectedCell((prev) => {
-      if (!prev) return { row: 0, col: 0 };
-      let { row, col } = prev;
-      if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
-      else if (e.key === 'ArrowDown') row = Math.min(rows.length - 1, row + 1);
-      else if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
-      else if (e.key === 'ArrowRight') col = Math.min(totalCols - 1, col + 1);
-      return { row, col };
-    });
+    const move = ({ row, col }) => {
+      if (e.key === 'ArrowUp') return { row: Math.max(0, row - 1), col };
+      if (e.key === 'ArrowDown') return { row: Math.min(rows.length - 1, row + 1), col };
+      if (e.key === 'ArrowLeft') return { row, col: Math.max(0, col - 1) };
+      return { row, col: Math.min(totalCols - 1, col + 1) };
+    };
+
+    // Shift + arrows grow the block from the anchor; plain arrows collapse it.
+    if (e.shiftKey) {
+      if (!selectedCell) {
+        setSelectedCell({ row: 0, col: 0 });
+        return;
+      }
+      setSelectionEnd((prev) => move(prev ?? selectedCell));
+      return;
+    }
+
+    setSelectionEnd(null);
+    setSelectedCell((prev) => (prev ? move(prev) : { row: 0, col: 0 }));
   };
 
   // Keep selection within bounds when rows/activities change
   useEffect(() => {
-    setSelectedCell((prev) => {
+    const totalCols = activityCount * COLS_PER_ACT;
+    const clamp = (prev) => {
       if (!prev) return prev;
-      const totalCols = activityCount * COLS_PER_ACT;
       if (totalCols === 0 || rows.length === 0) return null;
       return {
         row: Math.min(prev.row, rows.length - 1),
         col: Math.min(prev.col, totalCols - 1),
       };
-    });
+    };
+    setSelectedCell(clamp);
+    setSelectionEnd(clamp);
   }, [activityCount, rows.length]);
 
-  // Scroll the selected cell into view within the scroll container
+  // Scroll the moving edge of the selection into view within the scroll container
   useEffect(() => {
-    if (!selectedCell) return;
-    const el = cellRefs.current[`${selectedCell.row}-${selectedCell.col}`];
+    const edge = selectionEnd ?? selectedCell;
+    if (!edge) return;
+    const el = cellRefs.current[`${edge.row}-${edge.col}`];
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [selectedCell]);
+  }, [selectedCell, selectionEnd]);
 
   const isSelected = (row, col) => selectedCell?.row === row && selectedCell?.col === col;
-  const selectedStyle = (row, col) =>
-    isSelected(row, col) ? { outline: '2px solid #00aaff', outlineOffset: '-2px' } : null;
+
+  const activeRect = selectionRect();
+
+  // Anchor gets a solid outline, the rest of the block a tint, and the cells a
+  // copy was taken from a dashed marker until the next copy or Escape.
+  const cellChrome = (row, col) => {
+    const style = {};
+    if (inRect(activeRect, row, col)) {
+      style.boxShadow = 'inset 0 0 0 9999px rgba(0, 170, 255, 0.14)';
+    }
+    if (inRect(clipboard?.origin, row, col)) {
+      style.outline = '2px dashed #7048e8';
+      style.outlineOffset = '-2px';
+    }
+    if (isSelected(row, col)) {
+      style.outline = '2px solid #00aaff';
+      style.outlineOffset = '-2px';
+    }
+    return style;
+  };
+
+  // Selecting a cell also opens its editor, so shift-click extends the block
+  // instead of triggering the modal. Touch has no Shift and no way to tap a
+  // cell without opening its editor, so Select mode turns taps into pure
+  // selection: the first sets the anchor, each one after extends the block.
+  const selectCell = (e, row, col, openEditor) => {
+    if (selectMode) {
+      if (selectedCell) setSelectionEnd({ row, col });
+      else setSelectedCell({ row, col });
+      return;
+    }
+    if (e.shiftKey && selectedCell) {
+      setSelectionEnd({ row, col });
+      return;
+    }
+    setSelectedCell({ row, col });
+    setSelectionEnd(null);
+    openEditor();
+  };
+
+  const clearSelection = () => {
+    setSelectedCell(null);
+    setSelectionEnd(null);
+  };
+
+  const toggleSelectMode = () => {
+    // Always start from a clean slate so the first tap is unambiguously the
+    // anchor, not an extension of something selected minutes ago.
+    clearSelection();
+    setSelectMode((on) => !on);
+  };
+
+  const selectionSize = activeRect
+    ? { rows: activeRect.row1 - activeRect.row0 + 1, cols: activeRect.col1 - activeRect.col0 + 1 }
+    : null;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -452,7 +792,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
         timeOut={activeJustEntry?.to}
       />
 
-      <Group justify="space-between" mb={10}>
+      <Group justify="space-between" mb={10} wrap="wrap">
         <Box w={{ md: "40%", base: '100%' }}>
           <TextInput
             label="Search Admins"
@@ -464,12 +804,70 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
             <ThemeIcon variant="transparent" c="blue">
               <InfoIcon size={16} />
             </ThemeIcon>
-            <Text fw={700} c="dimmed" size="xs">Long press BLK & LOT cell to remove an activity · Click a cell, then use arrow keys to move and Enter to edit</Text>
+            <Text fw={700} c="dimmed" size="xs">
+              {selectMode
+                ? 'Select mode: tap a cell to start a block, tap another to extend it. Taps won\'t open editors. Then use Copy / Paste.'
+                : 'Long press BLK & LOT cell to remove an activity · Click a cell, then use arrow keys to move and Enter to edit · Shift + arrows or shift-click to select a block, Ctrl+C / Ctrl+V to copy and paste · On a tablet, use Select'}
+            </Text>
           </Group>
         </Box>
-        <Group>
+        <Group gap="xs" wrap="wrap" justify="flex-end" w={{ base: '100%', md: 'auto' }}>
+          {selectionSize && (
+            <Group gap={4} wrap="nowrap">
+              <Text size="xs" c="dimmed" fw={600}>
+                {selectionSize.rows === 1 && selectionSize.cols === 1
+                  ? `${FIELDS[activeRect.col0 % COLS_PER_ACT].label} selected`
+                  : `${selectionSize.rows} × ${selectionSize.cols} cells`}
+              </Text>
+              <Tooltip label="Clear selection" withArrow>
+                <ActionIcon size="sm" variant="subtle" color="gray" onClick={clearSelection}>
+                  <XIcon size={14} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          )}
+          {/* Touch copy/paste trio kept adjacent so they wrap together as a unit. */}
+          <Tooltip
+            label={selectMode ? 'Tap when you\'ve finished picking cells' : 'Pick cells by tapping — for touch screens'}
+            withArrow
+          >
+            <Button
+              size="xs"
+              variant={selectMode ? 'filled' : 'light'}
+              color="blue"
+              leftSection={<SquareDashedMousePointerIcon size={14} />}
+              onClick={toggleSelectMode}
+            >
+              {selectMode ? 'Selecting…' : 'Select'}
+            </Button>
+          </Tooltip>
+          <Tooltip label="Copy the selected cell(s) — Ctrl+C" withArrow>
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<CopyIcon size={14} />}
+              onClick={() => { copySelection(); focusSheet(); }}
+            >
+              Copy
+            </Button>
+          </Tooltip>
+          <Tooltip
+            label={clipboard ? `Paste ${FIELDS[clipboard.kind].label} into the selection — Ctrl+V` : 'Copy a cell first, then paste — Ctrl+V'}
+            withArrow
+          >
+            <Button
+              size="xs"
+              variant="light"
+              color="violet"
+              leftSection={<ClipboardPasteIcon size={14} />}
+              onClick={() => { pasteToSelection(); focusSheet(); }}
+            >
+              Paste
+            </Button>
+          </Tooltip>
           <Button
-            leftSection={<Sheet size={16}/>}
+            size="xs"
+            leftSection={<Sheet size={14}/>}
             onClick={handleExportExcel}
           >
             Export to Excel
@@ -569,20 +967,24 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                         <Table.Td
                           key={`bl-${key}`}
                           ref={(el) => { cellRefs.current[`${rowIdx}-${blCol}`] = el; }}
-                          onClick={() => { setSelectedCell({ row: rowIdx, col: blCol }); handleBlkLotClickGuarded(rowIdx, actIdx); }}
+                          onClick={(e) => selectCell(e, rowIdx, blCol, () => handleBlkLotClickGuarded(rowIdx, actIdx))}
                           onPointerDown={() => handleBlkLotPointerDown(rowIdx, actIdx)}
                           onPointerUp={handleBlkLotPointerUp}
                           onPointerLeave={handleBlkLotPointerUp}
+                          onPointerCancel={handleBlkLotPointerUp}
+                          onContextMenu={(e) => e.preventDefault()}
                           {...hover(`bl-${key}`)}
                           style={{
                             cursor: 'pointer',
                             minWidth: 100,
                             textAlign: 'center',
+                            position: 'relative',
+                            WebkitTouchCallout: 'none',
                             background: isHovered(`bl-${key}`) ? hoverBg : entry?.block ? blkLotSet : blkLotEmpty,
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
-                            ...selectedStyle(rowIdx, blCol),
+                            ...cellChrome(rowIdx, blCol),
                           }}
                         >
                           {entry?.block ? (
@@ -593,13 +995,24 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                           {entry?.rn != null && Number(entry.rn) !== 0 && (
                             <Text size="xs" c="teal" fw={600}>#{entry.rn}</Text>
                           )}
+                          {pressedKey === key && (
+                            <span
+                              className="taskSheetPressOverlay"
+                              style={{ '--task-sheet-press-duration': `${RING_MS}ms` }}
+                            >
+                              <svg width={24} height={24} viewBox="0 0 24 24" aria-hidden="true">
+                                <circle className="taskSheetPressTrack" cx="12" cy="12" r="9" />
+                                <circle className="taskSheetPressBar" cx="12" cy="12" r="9" />
+                              </svg>
+                            </span>
+                          )}
                         </Table.Td>
 
                         {/* Time In */}
                         <Table.Td
                           key={`ti-${key}`}
                           ref={(el) => { cellRefs.current[`${rowIdx}-${tiCol}`] = el; }}
-                          onClick={() => { setSelectedCell({ row: rowIdx, col: tiCol }); handleTimeClick(rowIdx, actIdx, 'ti'); }}
+                          onClick={(e) => selectCell(e, rowIdx, tiCol, () => handleTimeClick(rowIdx, actIdx, 'ti'))}
                           {...hover(`ti-${key}`)}
                           style={{
                             cursor: 'pointer',
@@ -609,7 +1022,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
-                            ...selectedStyle(rowIdx, tiCol),
+                            ...cellChrome(rowIdx, tiCol),
                           }}
                         >
                           {entry?.ti ? (
@@ -623,7 +1036,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                         <Table.Td
                           key={`to-${key}`}
                           ref={(el) => { cellRefs.current[`${rowIdx}-${toCol}`] = el; }}
-                          onClick={() => { setSelectedCell({ row: rowIdx, col: toCol }); handleTimeClick(rowIdx, actIdx, 'to'); }}
+                          onClick={(e) => selectCell(e, rowIdx, toCol, () => handleTimeClick(rowIdx, actIdx, 'to'))}
                           {...hover(`to-${key}`)}
                           style={{
                             cursor: 'pointer',
@@ -633,7 +1046,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
-                            ...selectedStyle(rowIdx, toCol),
+                            ...cellChrome(rowIdx, toCol),
                           }}
                         >
                           {entry?.to ? (
@@ -647,7 +1060,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                         <Table.Td
                           key={`ac-${key}`}
                           ref={(el) => { cellRefs.current[`${rowIdx}-${acCol}`] = el; }}
-                          onClick={() => { setSelectedCell({ row: rowIdx, col: acCol }); handleActivityClick(rowIdx, actIdx); }}
+                          onClick={(e) => selectCell(e, rowIdx, acCol, () => handleActivityClick(rowIdx, actIdx))}
                           {...hover(`ac-${key}`)}
                           style={{
                             cursor: 'pointer',
@@ -657,7 +1070,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                             userSelect: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s',
-                            ...selectedStyle(rowIdx, acCol),
+                            ...cellChrome(rowIdx, acCol),
                           }}
                         >
                           {entry?.activityCode ? (
@@ -684,7 +1097,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                         <Table.Td
                           key={`ju-${key}`}
                           ref={(el) => { cellRefs.current[`${rowIdx}-${juCol}`] = el; }}
-                          onClick={() => { setSelectedCell({ row: rowIdx, col: juCol }); handleJustificationClick(rowIdx, actIdx); }}
+                          onClick={(e) => selectCell(e, rowIdx, juCol, () => handleJustificationClick(rowIdx, actIdx))}
                           {...hover(`ju-${key}`)}
                           style={{
                             cursor: 'pointer',
@@ -697,7 +1110,7 @@ const TaskSheet = memo(({ params, rows = [], onDeleteRow, validateNonce = 0, rel
                                 ? justRequiredBg
                                 : isHovered(`ju-${key}`) ? hoverBg : bg,
                             transition: 'background 0.15s',
-                            ...selectedStyle(rowIdx, juCol),
+                            ...cellChrome(rowIdx, juCol),
                           }}
                         >
                           {hasJustification ? (

@@ -1,0 +1,43 @@
+/* Long-press-to-delete feedback on a Blk & Lot cell. The ring is driven by a
+   CSS animation rather than per-frame React state so holding a press doesn't
+   re-render the whole sheet. Its duration comes from --task-sheet-press-duration,
+   set inline from LONG_PRESS_MS so the visual and the timer can't drift apart. */
+
+.taskSheetPressOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(201, 42, 42, 0.16);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.taskSheetPressOverlay svg {
+    /* Start the sweep at 12 o'clock. */
+    transform: rotate(-90deg);
+}
+
+.taskSheetPressTrack {
+    fill: none;
+    stroke: rgba(201, 42, 42, 0.25);
+    stroke-width: 3;
+}
+
+.taskSheetPressBar {
+    fill: none;
+    stroke: #c92a2a;
+    stroke-width: 3;
+    stroke-linecap: round;
+    /* 2πr for r=9 */
+    stroke-dasharray: 56.549;
+    stroke-dashoffset: 56.549;
+    animation: taskSheetPressFill var(--task-sheet-press-duration, 800ms) linear forwards;
+}
+
+@keyframes taskSheetPressFill {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
