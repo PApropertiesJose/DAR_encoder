@@ -1,5 +1,6 @@
 import { Flex, Button, Paper, Box, Group, Stack, ThemeIcon, Text, Badge, Divider, ActionIcon, Collapse, SegmentedControl, Center } from "@mantine/core";
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import StringRoutes from "~/Constants/StringRoutes";
 import ErrorElement from "~/components/ErrorElement";
 import { ChevronDown, MapPinned, Pen, PlusIcon, NotebookPen, Trash } from 'lucide-react'
 import AutoCompleteAdmins from "~/components/Filter/AutoCompleteAdmins";
@@ -17,6 +18,7 @@ const TaskFieldForms = () => {
   const { state } = useLocation();
   const { user } = useAuth();
   const { phaseCode } = useParams();
+  const navigate = useNavigate();
   const [opened, { open, close }] = useDisclosure(false);
 
   if (!state || !Object.hasOwn(state, 'phase')) {
@@ -51,8 +53,19 @@ const TaskFieldForms = () => {
           </Group>
           <Text size="xs" style={{ fontFamily: 'monospace' }}>{phase.location}</Text>
         </Stack>
-        
+        <Group flex={1} justify="flex-end">
+          <Button
+            leftSection={<NotebookPen size={16} />}
+            onClick={() => navigate(
+              `${StringRoutes.project_selection_task_entries_post_tasks}/${phaseCode}`,
+              { viewTransition: true, state: { phase } }
+            )}
+          >
+            Manage Post Tasks
+          </Button>
+        </Group>
       </Group>
+
       <Divider my={10} />
 
       <Flex direction={{ md: 'row', base: 'column' }} align="flex-start" justify="space-between" >

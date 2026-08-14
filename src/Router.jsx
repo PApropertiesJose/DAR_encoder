@@ -6,6 +6,7 @@ import ProtectedRoutes from './components/Routes'
 import Login from './Pages/Auth/Login' 
 import ProjectSelection from './Pages/ProjectSelection'
 import TaskEntries from './Pages/TaskEntries'
+import PostActivitiesTask from './Pages/TaskEntries/PostActivitiesTask'
 import TaskEntriesOffline from './Pages/TaskEntriesOffline'
 import AdminPage from './Pages/Admin'
 import TaskEntriesList from './Pages/TaskEntriesOffline/TaskEntriesList'
@@ -34,6 +35,10 @@ const DASHBOARD_ROUTES = [
       {
         path: `${StringRoutes.project_selection_task_offline_list_form}`,
         Component: TaskEntryForm
+      },
+      {
+        path: `${StringRoutes.project_selection_task_entries_post_tasks}/:phaseCode?`,
+        Component: PostActivitiesTask,
       },
       {
         path: `${StringRoutes.project_selection_task_entries}/:phaseCode?`,

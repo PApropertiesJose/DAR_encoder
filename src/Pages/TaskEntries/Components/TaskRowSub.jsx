@@ -530,6 +530,15 @@ const TaskRowSub = memo(({
               onChange={(e) => setJustication(e.currentTarget.value)}
             />
           )}
+          {!rn && (constructionIndex === 'post-task') && (
+            <TextInput
+              readOnly={(rn && (control == "ADD" || control == "DELETE" || control == "END"))}
+              defaultValue={justification}
+              required
+              placeholder='Enter Justification'
+              onChange={(e) => setJustication(e.currentTarget.value)}
+            />
+          )}
         </Stack>
       </Table.Td>
 
